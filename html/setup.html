@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Setup — RNA-seq Comprehensive Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo"><p>The Bioinformatics Platform - KAUST</p></a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html">Labs</a></li>
+                <li><a href="setup.html" class="active">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <div class="hero">
+            <h1 style="color:aliceblue;">Environment Setup</h1>
+            <p>Prepare your system before the course begins</p>
+        </div>
+
+        <section>
+            <div class="breadcrumbs">
+                <a href="../index.html">Home</a> &rsaquo; Setup
+            </div>
+            <h2>Prerequisites</h2>
+            <ul>
+                <li>An active <strong>Ibex HPC account</strong> at KAUST</li>
+                <li>A laptop with a terminal application (macOS Terminal, Linux shell, or Windows with WSL2)</li>
+                <li>Basic familiarity with the Linux command line</li>
+                <li>R (&ge; 4.3) and RStudio installed locally (optional — can also use Ibex)</li>
+            </ul>
+        </section>
+
+        <section>
+            <h2>Software &amp; Tools</h2>
+            <div class="info-box note">
+                <strong>Content coming soon</strong>
+                Step-by-step installation instructions for all required tools will be provided here.
+            </div>
+
+            <h3>Command-line Tools (via conda/mamba)</h3>
+            <div class="info-box tip">
+                <strong>Tip</strong>
+                We recommend installing tools via <a href="https://mamba.readthedocs.io/en/latest/" target="_blank" rel="noopener">mamba</a> (a faster drop-in replacement for conda).
+            </div>
+            <div class="code-container">
+                <pre><code># Create a dedicated conda environment
+mamba create -n rnaseq -c bioconda -c conda-forge \
+    fastqc fastp trimmomatic multiqc \
+    star hisat2 samtools \
+    subread salmon kallisto \
+    rseqc qualimap sra-tools \
+    -y
+
+conda activate rnaseq</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+
+            <h3>R Packages (Bioconductor)</h3>
+            <div class="code-container">
+                <pre><code>if (!require("BiocManager", quietly = TRUE))
+    install.packages("BiocManager")
+
+BiocManager::install(c(
+    "DESeq2",
+    "edgeR",
+    "tximport",
+    "tximeta",
+    "clusterProfiler",
+    "org.Hs.eg.db",
+    "fgsea",
+    "pheatmap",
+    "ComplexHeatmap",
+    "EnhancedVolcano",
+    "apeglm"
+))
+
+install.packages(c("ggplot2", "dplyr", "tidyr", "ggrepel"))</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+        </section>
+
+        <section>
+            <h2>Connecting to Ibex</h2>
+            <div class="info-box note">
+                <strong>Content coming soon</strong>
+                Instructions for connecting to the KAUST Ibex HPC cluster will be provided here.
+            </div>
+            <div class="code-container">
+                <pre><code># Connect to Ibex via SSH
+ssh your_username@ibex.kaust.edu.sa</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+        </section>
+
+        <section>
+            <h2>Test Your Setup</h2>
+            <div class="info-box note">
+                <strong>Content coming soon</strong>
+                A test script to verify your installation will be provided here.
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Comprehensive Course — KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        function copyCode(btn) {
+            const code = btn.previousElementSibling.querySelector('code').innerText;
+            navigator.clipboard.writeText(code).then(() => {
+                btn.textContent = 'Copied!';
+                btn.classList.add('copied');
+                setTimeout(() => {
+                    btn.textContent = 'Copy';
+                    btn.classList.remove('copied');
+                }, 2000);
+            });
+        }
+    </script>
+</body>
+</html>

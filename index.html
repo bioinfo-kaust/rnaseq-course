@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RNA-seq Comprehensive Course</title>
+    <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="index.html" class="logo"><p>The Bioinformatics Platform - KAUST</p></a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="index.html" class="active">Home</a></li>
+                <li><a href="html/schedule.html">Schedule</a></li>
+                <li><a href="html/labs.html">Labs</a></li>
+                <li><a href="html/setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <div class="hero">
+            <h1 style="color:aliceblue;">RNA-seq Comprehensive Course</h1>
+            <p>From Raw Reads to Biological Insights — A Hands-on Training Program</p>
+            <div class="dates">
+                <strong>Dates 5-9 April 2026</strong> | KAUST, Thuwal, Saudi Arabia
+            </div>
+        </div>
+
+        <section>
+            <h2>Learning Outcomes</h2>
+            <div class="outcome-grid">
+                <div class="outcome-item">
+                    <span class="icon">&#128218;</span>
+                    <div>
+                        <strong>RNA-seq Principles</strong>
+                        <p>Understand the biological and technical principles of RNA sequencing, library preparation, and experimental design</p>
+                    </div>
+                </div>
+                <div class="outcome-item">
+                    <span class="icon">&#128187;</span>
+                    <div>
+                        <strong>Read Processing &amp; QC</strong>
+                        <p>Perform quality control, trimming, and pre-processing of raw RNA-seq reads using industry-standard tools</p>
+                    </div>
+                </div>
+                <div class="outcome-item">
+                    <span class="icon">&#129516;</span>
+                    <div>
+                        <strong>Alignment &amp; Quantification</strong>
+                        <p>Align reads to reference genomes and transcriptomes; quantify gene and transcript expression</p>
+                    </div>
+                </div>
+                <div class="outcome-item">
+                    <span class="icon">&#128196;</span>
+                    <div>
+                        <strong>Differential Expression</strong>
+                        <p>Identify differentially expressed genes using DESeq2 and edgeR and interpret statistical results</p>
+                    </div>
+                </div>
+                <div class="outcome-item">
+                    <span class="icon">&#127775;</span>
+                    <div>
+                        <strong>Visualization &amp; Reporting</strong>
+                        <p>Produce publication-quality plots, heatmaps, volcano plots, and comprehensive analysis reports</p>
+                    </div>
+                </div>
+                <div class="outcome-item">
+                    <span class="icon">&#127891;</span>
+                    <div>
+                        <strong>Functional Analysis</strong>
+                        <p>Perform gene ontology enrichment and pathway analysis to translate DEG lists into biological insight</p>
+                    </div>
+                </div>
+                <div class="outcome-item">
+                    <span class="icon">&#128296;</span>
+                    <div>
+                        <strong>Production Workflows with nf-core</strong>
+                        <p>Run a fully reproducible, scalable RNA-seq analysis using the nf-core/rnaseq pipeline on real datasets on HPC</p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Program Overview</h2>
+            <div class="card-grid">
+                <div class="card">
+                    <span class="tag">Module 1</span>
+                    <h3>Introduction, Experimental Design &amp; Data Access</h3>
+                    <p>RNA-seq biology and technology overview, experimental design principles, sequencing strategies (bulk, strand-specific, paired-end), HPC/Linux refresher, and downloading public RNA-seq data from SRA/ENA.</p>
+                    <a href="html/schedule.html#module1">View Module 1 &rarr;</a>
+                </div>
+                <div class="card">
+                    <span class="tag">Module 2</span>
+                    <h3>Read QC &amp; Pre-processing</h3>
+                    <p>Raw data quality assessment with FastQC and MultiQC, adapter trimming and quality filtering with fastp and Trimmomatic.</p>
+                    <a href="html/schedule.html#module2">View Module 2 &rarr;</a>
+                </div>
+                <div class="card">
+                    <span class="tag">Module 3</span>
+                    <h3>Alignment &amp; Quantification</h3>
+                    <p>Reference-based alignment with STAR and HISAT2, alignment QC with RSeQC and Qualimap, and read counting with featureCounts and HTSeq.</p>
+                    <a href="html/schedule.html#module3">View Module 3 &rarr;</a>
+                </div>
+                <div class="card">
+                    <span class="tag">Module 4</span>
+                    <h3>Quasi-mapping &amp; Transcript Quantification</h3>
+                    <p>Fast transcript-level quantification with Salmon and kallisto, understanding TPM/FPKM/RPKM, and tximport for downstream analysis.</p>
+                    <a href="html/schedule.html#module4">View Module 4 &rarr;</a>
+                </div>
+                <div class="card">
+                    <span class="tag">Module 5</span>
+                    <h3>nf-core/rnaseq Workflow</h3>
+                    <p>Introduction to Nextflow and nf-core. Configure and run the nf-core/rnaseq pipeline on Ibex — covering samplesheet setup, pipeline parameters, profiles, and understanding the full output structure.</p>
+                    <a href="html/schedule.html#module5">View Module 5 &rarr;</a>
+                </div>
+                <div class="card">
+                    <span class="tag">Module 6</span>
+                    <h3>Differential Expression Analysis</h3>
+                    <p>Exploratory data analysis, normalization, statistical modelling with DESeq2 and edgeR, and interpreting DE results including LFC shrinkage.</p>
+                    <a href="html/schedule.html#module6">View Module 6 &rarr;</a>
+                </div>
+                <div class="card">
+                    <span class="tag">Module 7</span>
+                    <h3>Visualization &amp; Functional Analysis</h3>
+                    <p>PCA plots, volcano plots, heatmaps with pheatmap/ComplexHeatmap, gene ontology enrichment with clusterProfiler, and pathway analysis with fgsea.</p>
+                    <a href="html/schedule.html#module7">View Module 7 &rarr;</a>
+                </div>
+                <div class="card">
+                    <span class="tag">Module 8</span>
+                    <h3>nf-core/differentialabundance</h3>
+                    <p>End-to-end automated DE analysis using the nf-core/differentialabundance pipeline — from count matrices to interactive Shiny reports, covering configuration, contrasts, and output interpretation.</p>
+                    <a href="html/schedule.html#module8">View Module 8 &rarr;</a>
+                </div>
+                <div class="card">
+                    <span class="tag">Module 9</span>
+                    <h3>Real-world Analysis Capstone</h3>
+                    <p>End-to-end analysis of a real public RNA-seq dataset: running nf-core/rnaseq, interpreting MultiQC reports, importing Salmon counts, performing DE analysis, and reporting results.</p>
+                    <a href="html/schedule.html#module9">View Module 9 &rarr;</a>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Practical Information</h2>
+
+            <h3>Schedule</h3>
+            <ul>
+                <li><strong>Dates:</strong> 5-9 April 2026</li>
+                <li><strong>Format:</strong> Lectures and hands-on lab sessions</li>
+                <li><strong>Venue:</strong> Building 9 Room ? — KAUST, Thuwal, Saudi Arabia</li>
+                <li><strong>Duration:</strong> One Week</li>
+            </ul>
+
+            <h3>Prerequisites</h3>
+            <ul>
+                <li>Linux/command-line experience (or completion of Introduction to Applied Bioinformatics)</li>
+                <li>Understanding of molecular biology (DNA, RNA, gene expression)</li>
+                <li>Ibex HPC account</li>
+                <li>Laptop with terminal access</li>
+            </ul>
+
+            <h3>Instructors</h3>
+            <ul>
+                <li>Husen M. Umer</li>
+                <li>Salim Bougouffa</li>
+            </ul>
+
+            <div class="quick-links">
+                <a href="html/schedule.html" class="quick-link">&#128197; View Full Schedule</a>
+                <a href="html/labs.html" class="quick-link">&#129514; Browse Labs</a>
+                <a href="html/setup.html" class="quick-link">&#128736; Setup Environment</a>
+            </div>
+        </section>
+
+        <section>
+            <h2>Tools Used</h2>
+            <div class="tools-list">
+                <span class="tool-tag">FastQC</span>
+                <span class="tool-tag">fastp</span>
+                <span class="tool-tag">Trimmomatic</span>
+                <span class="tool-tag">MultiQC</span>
+                <span class="tool-tag">STAR</span>
+                <span class="tool-tag">HISAT2</span>
+                <span class="tool-tag">samtools</span>
+                <span class="tool-tag">featureCounts</span>
+                <span class="tool-tag">HTSeq</span>
+                <span class="tool-tag">Salmon</span>
+                <span class="tool-tag">kallisto</span>
+                <span class="tool-tag">DESeq2</span>
+                <span class="tool-tag">edgeR</span>
+                <span class="tool-tag">tximport</span>
+                <span class="tool-tag">clusterProfiler</span>
+                <span class="tool-tag">fgsea</span>
+                <span class="tool-tag">pheatmap</span>
+                <span class="tool-tag">ggplot2</span>
+                <span class="tool-tag">R / Bioconductor</span>
+                <span class="tool-tag">Jupyter</span>
+                <span class="tool-tag">IGV</span>
+                <span class="tool-tag">RSeQC</span>
+                <span class="tool-tag">Nextflow</span>
+                <span class="tool-tag">nf-core/rnaseq</span>
+                <span class="tool-tag">nf-core/differentialabundance</span>
+                <span class="tool-tag">nf-core tools</span>
+                <span class="tool-tag">Singularity</span>
+            </div>
+        </section>
+
+        <section>
+            <h2>Relevant Resources</h2>
+            <ul>
+                <li><a href="https://rnaseq.uoregon.edu/" target="_blank" rel="noopener">RNA-seqlopedia — University of Oregon</a></li>
+                <li><a href="https://bioconductor.org/packages/release/bioc/html/DESeq2.html" target="_blank" rel="noopener">DESeq2 — Bioconductor</a></li>
+                <li><a href="https://combine-lab.github.io/salmon/" target="_blank" rel="noopener">Salmon — Quasi-mapping quantification</a></li>
+                <li><a href="https://www.bioconductor.org/packages/release/bioc/html/clusterProfiler.html" target="_blank" rel="noopener">clusterProfiler — Functional enrichment analysis</a></li>
+                <li><a href="https://nf-co.re/rnaseq" target="_blank" rel="noopener">nf-core/rnaseq — Production-grade RNA-seq pipeline</a></li>
+                <li><a href="https://www.nextflow.io/docs/latest/index.html" target="_blank" rel="noopener">Nextflow Documentation</a></li>
+                <li><a href="https://nf-co.re/docs/usage/introduction" target="_blank" rel="noopener">nf-core — Getting Started</a></li>
+                <li><a href="https://nf-co.re/differentialabundance" target="_blank" rel="noopener">nf-core/differentialabundance — Automated DE analysis pipeline</a></li>
+                <li><a href="https://www.ebi.ac.uk/training/online/courses/functional-genomics-ii-common-technologies-and-data-analysis-methods/rna-sequencing/" target="_blank" rel="noopener">EMBL-EBI — RNA-seq Analysis Training</a></li>
+            </ul>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Comprehensive Course — KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+    </script>
+</body>
+</html>

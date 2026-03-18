@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Labs — RNA-seq Comprehensive Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo"><p>The Bioinformatics Platform - KAUST</p></a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <div class="hero">
+            <h1 style="color:aliceblue;">Hands-on Labs</h1>
+            <p>Practical exercises for the RNA-seq Comprehensive Course</p>
+        </div>
+
+        <section>
+            <div class="breadcrumbs">
+                <a href="../index.html">Home</a> &rsaquo; Labs
+            </div>
+            <h2>Lab Overview</h2>
+            <div class="info-box note">
+                <strong>Content coming soon</strong>
+                Lab exercises will be listed here. Each lab will include step-by-step instructions, code, and expected outputs.
+            </div>
+
+            <div class="card-grid" style="margin-top:1.5rem">
+
+                <!-- Module 1 -->
+                <div class="card lab-card">
+                    <span class="tag">Lab 1</span>
+                    <h3>Public Data Access &amp; SRA Download</h3>
+                    <p>Browse GEO and SRA to find RNA-seq datasets. Download FASTQ files using sra-tools (prefetch + fasterq-dump) and ENA browser. Organise a project directory structure.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+
+                <!-- Module 2 -->
+                <div class="card lab-card">
+                    <span class="tag">Lab 2</span>
+                    <h3>Quality Control</h3>
+                    <p>Run FastQC and MultiQC on raw RNA-seq reads. Interpret QC metrics and identify potential issues.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+                <div class="card lab-card">
+                    <span class="tag">Lab 3</span>
+                    <h3>Read Trimming</h3>
+                    <p>Trim adapters and low-quality bases using fastp. Compare pre- and post-trimming QC reports.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+
+                <!-- Module 3 -->
+                <div class="card lab-card">
+                    <span class="tag">Lab 4</span>
+                    <h3>Alignment with STAR</h3>
+                    <p>Build a STAR genome index and align trimmed reads. Assess alignment statistics and visualize in IGV.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+                <div class="card lab-card">
+                    <span class="tag">Lab 5</span>
+                    <h3>Read Counting</h3>
+                    <p>Quantify gene expression using featureCounts. Explore the count matrix and normalization strategies.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+
+                <!-- Module 4 -->
+                <div class="card lab-card">
+                    <span class="tag">Lab 6</span>
+                    <h3>Salmon Quantification</h3>
+                    <p>Build a Salmon index and perform quasi-mapping-based quantification. Import results with tximport.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+
+                <!-- Module 5 -->
+                <div class="card lab-card">
+                    <span class="tag">Lab 7</span>
+                    <h3>Introduction to nf-core/rnaseq</h3>
+                    <p>Install Nextflow and nf-core tools on Ibex. Understand pipeline structure, profiles, and configuration. Run the pipeline on a small test dataset and explore the output directory.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+                <div class="card lab-card">
+                    <span class="tag">Lab 8</span>
+                    <h3>Configuring &amp; Running nf-core/rnaseq</h3>
+                    <p>Build a samplesheet, set pipeline parameters (aligner, genome, strandedness), run with the Ibex SLURM profile, and monitor progress. Troubleshoot common issues.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+                <div class="card lab-card">
+                    <span class="tag">Lab 9</span>
+                    <h3>Interpreting nf-core/rnaseq Output</h3>
+                    <p>Navigate the pipeline output: MultiQC report, STAR/Salmon results, bigWig files, and QC flags. Understand which outputs feed into downstream DE analysis.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+
+                <!-- Module 6 -->
+                <div class="card lab-card">
+                    <span class="tag">Lab 10</span>
+                    <h3>Differential Expression with DESeq2</h3>
+                    <p>Perform DE analysis in R with DESeq2. Filter, shrink, and interpret DEG results.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+
+                <!-- Module 7 -->
+                <div class="card lab-card">
+                    <span class="tag">Lab 11</span>
+                    <h3>Visualization</h3>
+                    <p>Generate PCA plots, volcano plots, MA plots, and heatmaps to visualize expression patterns.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+                <div class="card lab-card">
+                    <span class="tag">Lab 12</span>
+                    <h3>Functional Enrichment</h3>
+                    <p>Run GO and KEGG enrichment analysis with clusterProfiler. Visualize and interpret results.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+
+                <!-- Module 8 -->
+                <div class="card lab-card">
+                    <span class="tag">Lab 13</span>
+                    <h3>nf-core/differentialabundance</h3>
+                    <p>Configure and run the nf-core/differentialabundance pipeline on a count matrix. Define contrasts, review the automated DESeq2/edgeR outputs, and explore the interactive Shiny report.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+
+                <!-- Module 9 -->
+                <div class="card lab-card">
+                    <span class="tag">Lab 14</span>
+                    <h3>End-to-end Real Dataset Capstone</h3>
+                    <p>Apply the full workflow to a real public RNA-seq dataset: download from SRA, run nf-core/rnaseq, import counts, perform DE analysis, visualize results, and produce a final report.</p>
+                    <span style="color:var(--text-light);font-size:0.9rem">Coming soon</span>
+                </div>
+
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Comprehensive Course — KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+    </script>
+</body>
+</html>
