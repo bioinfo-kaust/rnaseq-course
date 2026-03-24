@@ -23,93 +23,513 @@
     <main>
         <div class="hero">
             <h1 style="color:aliceblue;">Course Schedule</h1>
-            <p>RNA-seq Comprehensive Course — Session Overview</p>
+            <p>RNA-seq Comprehensive Course &mdash; 5&ndash;9 April 2026 &bull; KAUST, Thuwal</p>
         </div>
 
         <section>
             <div class="breadcrumbs">
                 <a href="../index.html">Home</a> &rsaquo; Schedule
             </div>
-            <h2 id="module1">Module 1 — Introduction, Experimental Design &amp; Data Access</h2>
+
+            <div class="day-tabs">
+                <a href="#day1" class="day-tab">Day 1 &mdash; Sun 5 Apr</a>
+                <a href="#day2" class="day-tab">Day 2 &mdash; Mon 6 Apr</a>
+                <a href="#day3" class="day-tab">Day 3 &mdash; Tue 7 Apr</a>
+                <a href="#day4" class="day-tab">Day 4 &mdash; Wed 8 Apr</a>
+                <a href="#day5" class="day-tab">Day 5 &mdash; Thu 9 Apr</a>
+            </div>
+
             <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Schedule details will be added here.
+                <strong>Dataset</strong>
+                All labs use <strong>GSE136366</strong> — a human RNA-seq study. Refer to the <a href="setup.html">Setup page</a> to prepare your Ibex environment before the course.
             </div>
         </section>
 
-        <section>
-            <h2 id="module2">Module 2 — Read QC &amp; Pre-processing</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Schedule details will be added here.
-            </div>
+        <!-- Day 1 -->
+        <section id="day1">
+            <h2>Day 1 &mdash; Sunday, 5 April 2026</h2>
+
+            <h3 id="module1">Module 1: Biological Background</h3>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Topic</th>
+                        <th>Tools / Resources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>09:00 &ndash; 09:15</td>
+                        <td class="session-type">Welcome</td>
+                        <td>Course introduction, logistics, and learning objectives</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>09:15 &ndash; 10:00</td>
+                        <td class="session-type">Lecture</td>
+                        <td>RNA-seq overview: applications, library preparation, and protocols</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>10:00 &ndash; 10:45</td>
+                        <td class="session-type">Lecture</td>
+                        <td>RNA-seq experimental design: replication, batch effects, and power</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>10:45 &ndash; 11:00</td>
+                        <td class="session-type">Break</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>11:00 &ndash; 12:00</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Sequencing technologies: short-read (Illumina), long-read (Nanopore, PacBio SMRT)</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>12:00 &ndash; 13:00</td>
+                        <td class="session-type">Lunch</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 id="module2" style="margin-top:1.5rem;">Module 2: Computational Overview and Data Access</h3>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Topic</th>
+                        <th>Tools / Resources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>13:00 &ndash; 13:45</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Linux command line refresher and Ibex HPC orientation</td>
+                        <td>Ibex, <code>bash</code></td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>13:45 &ndash; 14:30</td>
+                        <td class="session-type">Lab 1</td>
+                        <td><a href="lab-file-formats.html">Genomic File Formats</a> — explore FASTA, FASTQ, and BAM files on Ibex</td>
+                        <td><code>seqkit</code>, <code>samtools</code></td>
+                    </tr>
+                    <tr>
+                        <td>14:30 &ndash; 14:45</td>
+                        <td class="session-type">Break</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>14:45 &ndash; 16:30</td>
+                        <td class="session-type">Lab 2</td>
+                        <td><a href="lab-public-data.html">Public Data Retrieval</a> — download GSE136366 FASTQ files and reference genome</td>
+                        <td><code>sra-toolkit</code>, <code>datasets</code>, <code>seqkit</code></td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
-        <section>
-            <h2 id="module3">Module 3 — Alignment &amp; Quantification</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Schedule details will be added here.
-            </div>
+        <!-- Day 2 -->
+        <section id="day2">
+            <h2>Day 2 &mdash; Monday, 6 April 2026</h2>
+
+            <h3 id="module3">Module 3: QC and Preprocessing</h3>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Topic</th>
+                        <th>Tools / Resources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>09:00 &ndash; 09:45</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Raw data quality evaluation: interpreting FastQC reports</td>
+                        <td><code>FastQC</code></td>
+                    </tr>
+                    <tr>
+                        <td>09:45 &ndash; 10:30</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Adapter trimming and quality filtering with fastp; ribosomal and contaminant removal</td>
+                        <td><code>fastp</code></td>
+                    </tr>
+                    <tr>
+                        <td>10:30 &ndash; 10:45</td>
+                        <td class="session-type">Break</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>10:45 &ndash; 12:00</td>
+                        <td class="session-type">Lab 3</td>
+                        <td>FastQC, fastp trimming, and MultiQC report — QC of GSE136366 samples</td>
+                        <td><code>FastQC</code>, <code>fastp</code>, <code>MultiQC</code></td>
+                    </tr>
+                    <tr>
+                        <td>12:00 &ndash; 13:00</td>
+                        <td class="session-type">Lunch</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 id="module4" style="margin-top:1.5rem;">Module 4: Read Alignment</h3>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Topic</th>
+                        <th>Tools / Resources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>13:00 &ndash; 14:00</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Read alignment vs. pseudoalignment; splice-aware alignment; building a STAR index</td>
+                        <td><code>STAR</code></td>
+                    </tr>
+                    <tr>
+                        <td>14:00 &ndash; 14:30</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Post-processing aligned reads: sorting, indexing, duplicate marking, alignment QC</td>
+                        <td><code>samtools</code>, <code>Picard</code></td>
+                    </tr>
+                    <tr>
+                        <td>14:30 &ndash; 14:45</td>
+                        <td class="session-type">Break</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>14:45 &ndash; 16:30</td>
+                        <td class="session-type">Lab 4</td>
+                        <td>STAR alignment of GSE136366 samples; BAM post-processing and visualization in IGV</td>
+                        <td><code>STAR</code>, <code>samtools</code>, <code>Picard</code>, <code>IGV</code></td>
+                    </tr>
+                    <tr>
+                        <td>16:30 &ndash; 17:00</td>
+                        <td class="session-type">Wrap-up</td>
+                        <td>Q&amp;A and recap</td>
+                        <td>&mdash;</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
-        <section>
-            <h2 id="module4">Module 4 — Quasi-mapping &amp; Transcript Quantification</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Schedule details will be added here.
-            </div>
+        <!-- Day 3 -->
+        <section id="day3">
+            <h2>Day 3 &mdash; Tuesday, 7 April 2026</h2>
+
+            <h3 id="module5">Module 5: Quantification</h3>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Topic</th>
+                        <th>Tools / Resources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>09:00 &ndash; 09:45</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Transcript quantification with Salmon: selective alignment and TPM</td>
+                        <td><code>Salmon</code></td>
+                    </tr>
+                    <tr>
+                        <td>09:45 &ndash; 10:30</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Post-alignment QC: strandedness, coverage uniformity, duplication, library complexity</td>
+                        <td><code>RSeQC</code>, <code>QualiMap</code>, <code>dupRadar</code>, <code>PreSeq</code></td>
+                    </tr>
+                    <tr>
+                        <td>10:30 &ndash; 10:45</td>
+                        <td class="session-type">Break</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>10:45 &ndash; 12:00</td>
+                        <td class="session-type">Lab 5</td>
+                        <td>Salmon quantification of GSE136366; PCA and sample-level exploratory analysis</td>
+                        <td><code>Salmon</code>, <code>tximport</code>, <code>ggplot2</code></td>
+                    </tr>
+                    <tr>
+                        <td>12:00 &ndash; 13:00</td>
+                        <td class="session-type">Lunch</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 id="module6" style="margin-top:1.5rem;">Module 6: Standardized and Reproducible Analysis I</h3>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Topic</th>
+                        <th>Tools / Resources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>13:00 &ndash; 14:00</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Nextflow and nf-core overview; nf-core/rnaseq workflow structure and key parameters</td>
+                        <td><code>Nextflow</code>, <code>nf-core tools</code></td>
+                    </tr>
+                    <tr>
+                        <td>14:00 &ndash; 14:30</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Samplesheet setup, Singularity containers, and Ibex job submission</td>
+                        <td><code>Singularity</code></td>
+                    </tr>
+                    <tr>
+                        <td>14:30 &ndash; 14:45</td>
+                        <td class="session-type">Break</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>14:45 &ndash; 16:30</td>
+                        <td class="session-type">Lab 6</td>
+                        <td>Configure and run nf-core/rnaseq on GSE136366; inspect MultiQC report and output files</td>
+                        <td><code>nf-core/rnaseq</code>, <code>MultiQC</code></td>
+                    </tr>
+                    <tr>
+                        <td>16:30 &ndash; 17:00</td>
+                        <td class="session-type">Wrap-up</td>
+                        <td>Q&amp;A and recap</td>
+                        <td>&mdash;</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
-        <section>
-            <h2 id="module5">Module 5 — nf-core/rnaseq Workflow</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Schedule details will be added here.
-            </div>
+        <!-- Day 4 -->
+        <section id="day4">
+            <h2>Day 4 &mdash; Wednesday, 8 April 2026</h2>
+
+            <h3 id="module7">Module 7: Differential Expression Analysis</h3>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Topic</th>
+                        <th>Tools / Resources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>09:00 &ndash; 09:45</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Normalization strategies: TPM, FPKM, TMM, DESeq2 size factors</td>
+                        <td><code>DESeq2</code>, <code>edgeR</code></td>
+                    </tr>
+                    <tr>
+                        <td>09:45 &ndash; 10:30</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Statistical testing: design matrices, contrasts, LFC shrinkage, and confounders</td>
+                        <td><code>DESeq2</code>, <code>edgeR</code></td>
+                    </tr>
+                    <tr>
+                        <td>10:30 &ndash; 10:45</td>
+                        <td class="session-type">Break</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>10:45 &ndash; 12:00</td>
+                        <td class="session-type">Lab 7</td>
+                        <td>DEA in R with DESeq2 — PCA, volcano plots, MA plots, heatmaps of GSE136366</td>
+                        <td><code>DESeq2</code>, <code>pheatmap</code>, <code>ggplot2</code>, <code>ComplexHeatmap</code></td>
+                    </tr>
+                    <tr>
+                        <td>12:00 &ndash; 13:00</td>
+                        <td class="session-type">Lunch</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                </tbody>
+            </table>
+
+            <h3 id="module8" style="margin-top:1.5rem;">Module 8: Functional Enrichment</h3>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Topic</th>
+                        <th>Tools / Resources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>13:00 &ndash; 13:45</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Enrichment analysis overview: ORA vs. GSEA; multiple testing considerations</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>13:45 &ndash; 14:30</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Gene Ontology (GO) enrichment, KEGG pathway analysis, and Gene Set Enrichment Analysis (GSEA)</td>
+                        <td><code>clusterProfiler</code>, <code>fgsea</code>, <code>org.Hs.eg.db</code></td>
+                    </tr>
+                    <tr>
+                        <td>14:30 &ndash; 14:45</td>
+                        <td class="session-type">Break</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>14:45 &ndash; 16:30</td>
+                        <td class="session-type">Lab 8</td>
+                        <td>GO enrichment, pathway enrichment, and GSEA on GSE136366 DEG results</td>
+                        <td><code>clusterProfiler</code>, <code>fgsea</code>, <code>ggplot2</code></td>
+                    </tr>
+                    <tr>
+                        <td>16:30 &ndash; 17:00</td>
+                        <td class="session-type">Wrap-up</td>
+                        <td>Q&amp;A and recap</td>
+                        <td>&mdash;</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
 
-        <section>
-            <h2 id="module6">Module 6 — Differential Expression Analysis</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Schedule details will be added here.
-            </div>
-        </section>
+        <!-- Day 5 -->
+        <section id="day5">
+            <h2>Day 5 &mdash; Thursday, 9 April 2026</h2>
 
-        <section>
-            <h2 id="module7">Module 7 — Visualization &amp; Functional Analysis</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Schedule details will be added here.
-            </div>
-        </section>
+            <h3 id="module9">Module 9: Standardized and Reproducible Analysis II</h3>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Topic</th>
+                        <th>Tools / Resources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>09:00 &ndash; 09:45</td>
+                        <td class="session-type">Lecture</td>
+                        <td>nf-core/differentialabundance overview: input files, contrasts configuration, and output</td>
+                        <td><code>nf-core/differentialabundance</code></td>
+                    </tr>
+                    <tr>
+                        <td>09:45 &ndash; 10:30</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Interpreting the interactive Shiny report and MultiQC DE summary</td>
+                        <td><code>MultiQC</code></td>
+                    </tr>
+                    <tr>
+                        <td>10:30 &ndash; 10:45</td>
+                        <td class="session-type">Break</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>10:45 &ndash; 12:00</td>
+                        <td class="session-type">Lab 9</td>
+                        <td>Configure and run nf-core/differentialabundance on GSE136366; interpret output</td>
+                        <td><code>nf-core/differentialabundance</code></td>
+                    </tr>
+                    <tr>
+                        <td>12:00 &ndash; 13:00</td>
+                        <td class="session-type">Lunch</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                </tbody>
+            </table>
 
-        <section>
-            <h2 id="module8">Module 8 — nf-core/differentialabundance</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Schedule details will be added here.
-            </div>
-        </section>
-
-        <section>
-            <h2 id="module9">Module 9 — Real-world Analysis Capstone</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Schedule details will be added here.
-            </div>
+            <h3 id="module10" style="margin-top:1.5rem;">Module 10: Real-world Analysis Capstone</h3>
+            <table class="schedule-table">
+                <thead>
+                    <tr>
+                        <th>Time</th>
+                        <th>Type</th>
+                        <th>Topic</th>
+                        <th>Tools / Resources</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>13:00 &ndash; 13:30</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Capstone overview: end-to-end analysis strategy and interpretation tips</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>13:30 &ndash; 15:30</td>
+                        <td class="session-type">Lab 10</td>
+                        <td>End-to-end analysis of GSE136366 (or your own dataset) — nf-core/rnaseq &rarr; DE &rarr; enrichment</td>
+                        <td>All course tools</td>
+                    </tr>
+                    <tr>
+                        <td>15:30 &ndash; 15:45</td>
+                        <td class="session-type">Break</td>
+                        <td>&mdash;</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>15:45 &ndash; 16:30</td>
+                        <td class="session-type">Presentations</td>
+                        <td>Participant capstone results and discussion</td>
+                        <td>&mdash;</td>
+                    </tr>
+                    <tr>
+                        <td>16:30 &ndash; 17:00</td>
+                        <td class="session-type">Closing</td>
+                        <td>Course wrap-up, resources, and next steps in bioinformatics</td>
+                        <td>&mdash;</td>
+                    </tr>
+                </tbody>
+            </table>
         </section>
     </main>
 
     <footer>
-        <p>RNA-seq Comprehensive Course — KAUST Bioinformatics Platform</p>
+        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
     </footer>
 
     <script>
         function toggleNav() {
             document.getElementById('nav-menu').classList.toggle('show');
         }
+
+        // Highlight the active day tab based on URL hash
+        function setActiveTab() {
+            const hash = window.location.hash || '#day1';
+            document.querySelectorAll('.day-tab').forEach(tab => {
+                tab.classList.toggle('active', tab.getAttribute('href') === hash);
+            });
+        }
+
+        setActiveTab();
+        window.addEventListener('hashchange', setActiveTab);
     </script>
 </body>
 </html>

@@ -35,17 +35,11 @@
                 <li>An active <strong>Ibex HPC account</strong> at KAUST</li>
                 <li>A laptop with a terminal application (macOS Terminal, Linux shell, or Windows with WSL2)</li>
                 <li>Basic familiarity with the Linux command line</li>
-                <li>R (&ge; 4.3) and RStudio installed locally (optional — can also use Ibex)</li>
             </ul>
         </section>
 
         <section>
-            <h2>Software &amp; Tools</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Step-by-step installation instructions for all required tools will be provided here.
-            </div>
-
+            <h2>Software &amp; Tools on Personal Computer</h2>
             <h3>Command-line Tools (via conda/mamba)</h3>
             <div class="info-box tip">
                 <strong>Tip</strong>
@@ -90,24 +84,19 @@ install.packages(c("ggplot2", "dplyr", "tidyr", "ggrepel"))</code></pre>
 
         <section>
             <h2>Connecting to Ibex</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                Instructions for connecting to the KAUST Ibex HPC cluster will be provided here.
-            </div>
             <div class="code-container">
                 <pre><code># Connect to Ibex via SSH
 ssh your_username@ibex.kaust.edu.sa</code></pre>
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
-        </section>
-
-        <section>
-            <h2>Test Your Setup</h2>
-            <div class="info-box note">
-                <strong>Content coming soon</strong>
-                A test script to verify your installation will be provided here.
+            <h2>Use pre-installed software and tools</h2>
+            <div class="code-container">
+                <pre><code># Search for a tool and load if found
+module avail toolName<br/>module load toolName</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
         </section>
+
     </main>
 
     <footer>
