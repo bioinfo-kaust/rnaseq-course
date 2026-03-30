@@ -1,0 +1,492 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 3: QC and Preprocessing — RNA-seq Comprehensive Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo">The Bioinformatics Platform - KAUST</a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <h1>Lab 3: QC and Preprocessing</h1>
+        <p>In this lab you will assess the quality of the raw subsampled reads from <strong>GSE136366</strong>, trim adapters and low-quality bases using <code>fastp</code>, re-assess quality after trimming, and aggregate all QC reports into a single interactive summary with <code>MultiQC</code>.</p>
+
+        <div class="info-box note">
+            <strong>Learning Objectives</strong>
+            <ul>
+                <li>Run <code>FastQC</code> on raw reads and interpret the key report modules</li>
+                <li>Understand Phred quality scores and what PASS / WARN / FAIL mean</li>
+                <li>Trim adapters and low-quality bases with <code>fastp</code> using a loop over all samples</li>
+                <li>Re-run <code>FastQC</code> on trimmed reads to verify improvement</li>
+                <li>Aggregate all QC outputs into one report with <code>MultiQC</code></li>
+            </ul>
+        </div>
+
+        <!-- ================================ -->
+        <!-- Part 1: Setup on Ibex            -->
+        <!-- ================================ -->
+        <section id="part1">
+            <h2>Part 1: Setup on Ibex</h2>
+            <p>All work in this lab is performed on the KAUST Ibex HPC cluster. Start an interactive session and load the required tools before running any commands.</p>
+
+            <div class="step" data-step="1">
+                <h3>Connect to Ibex and start an interactive session</h3>
+                <pre><code># Connect to the Ibex login node
+ssh username@ilogin.ibex.kaust.edu.sa
+
+# Start an interactive compute session (never run analyses on login nodes!)
+srun --pty --time=4:00:00 --mem=16G --cpus-per-task=4 bash</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Interactive vs. batch jobs</strong>
+                    <p>For this lab the commands are fast enough to run interactively. For full-size datasets, submit them as SLURM batch jobs (<code>sbatch</code>) so they can run unattended overnight.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Load required modules</h3>
+                <pre><code># Load the three tools used in this lab
+module load fastqc
+module load fastp
+module load multiqc
+
+# Confirm all three are loaded
+module list
+
+# Quick version checks
+fastqc --version
+fastp --version
+multiqc --version</code></pre>
+                <div class="info-box note">
+                    <strong>Module names on Ibex</strong>
+                    <p>If <code>module load fastqc</code> fails, search for the correct module name with <code>module avail fastqc</code>. Module names are sometimes case-sensitive or include a version suffix (e.g., <code>fastqc/0.12.1</code>).</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Navigate to your workspace and create output directories</h3>
+                <pre><code># Go to your workshop directory
+cd /ibex/user/$USER/workshop
+
+# Create subdirectories for trimmed reads and QC results
+mkdir -p trimmed
+mkdir -p qc/raw
+mkdir -p qc/trimmed
+mkdir -p qc/fastp
+mkdir -p qc/multiqc_report
+
+# Verify the structure
+ls -la</code></pre>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Confirm that subsampled FASTQ files are present</h3>
+                <pre><code># List the subsampled input files (from Lab 2)
+ls -lh raw_data/*_sub_1.fastq.gz
+ls -lh raw_data/*_sub_2.fastq.gz
+
+# Check the accession list
+cat raw_data/SRR_Acc_List.txt</code></pre>
+                <div class="info-box note">
+                    <strong>Expected files</strong>
+                    <p>You should see paired files named <code>SRR10009250_sub_1.fastq.gz</code> / <code>SRR10009250_sub_2.fastq.gz</code> (and similar) for each SRR accession. Each file contains 1 million reads subsampled in Lab 2. If these files are missing, revisit <a href="lab-public-data.html">Lab 2: Public Data Retrieval</a>.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================================= -->
+        <!-- Part 2: Quality Control with FastQC       -->
+        <!-- ========================================= -->
+        <section id="part2">
+            <h2>Part 2: Quality Control with FastQC</h2>
+            <p><strong>FastQC</strong> is the most widely used tool for assessing the quality of raw sequencing reads. It reads one or more FASTQ files and produces an HTML report with a series of diagnostic plots and summary flags (PASS / WARN / FAIL) for each quality module.</p>
+
+            <div class="info-box note">
+                <strong>What FastQC checks</strong>
+                <table class="schedule-table">
+                    <tr><th>Module</th><th>What to look for</th></tr>
+                    <tr><td>Per Base Sequence Quality</td><td>Quality should stay above Q28 across the full read length. A drop at the 3&prime; end is normal for Illumina reads.</td></tr>
+                    <tr><td>Per Sequence Quality Scores</td><td>The distribution should be unimodal and shifted towards high scores (Q30+).</td></tr>
+                    <tr><td>Adapter Content</td><td>Any adapter signal &gt;5% indicates reads shorter than the sequenced fragment — trim before alignment.</td></tr>
+                    <tr><td>Sequence Duplication Levels</td><td>RNA-seq libraries commonly show high duplication due to highly expressed transcripts. WARN/FAIL here is expected.</td></tr>
+                    <tr><td>Overrepresented Sequences</td><td>WARN/FAIL often caused by adapter dimers or rRNA — worth investigating if &gt;1% of reads.</td></tr>
+                    <tr><td>Per Base Sequence Content</td><td>The first 10–15 bp may show biased content due to random hexamer priming — this is expected in RNA-seq.</td></tr>
+                </table>
+            </div>
+
+            <div class="info-box note">
+                <strong>Phred Quality Scores (Q-scores)</strong>
+                <p>Each base in a FASTQ file has a quality score encoded as a single ASCII character. The numeric Phred score Q is defined as:</p>
+                <pre><code>Q = -10 * log10(P)   where P = probability of a wrong base call</code></pre>
+                <table class="schedule-table">
+                    <tr><th>Phred Score</th><th>Error probability</th><th>Accuracy</th><th>Typical threshold</th></tr>
+                    <tr><td>Q10</td><td>1 in 10</td><td>90%</td><td>Poor — discard or trim</td></tr>
+                    <tr><td>Q20</td><td>1 in 100</td><td>99%</td><td>Minimum acceptable</td></tr>
+                    <tr><td>Q30</td><td>1 in 1,000</td><td>99.9%</td><td>Good quality</td></tr>
+                    <tr><td>Q40</td><td>1 in 10,000</td><td>99.99%</td><td>Excellent quality</td></tr>
+                </table>
+                <p>Most downstream tools (aligners, variant callers) recommend at least <strong>Q20</strong> per-base quality. Aim for &ge;80% of bases at Q30 or above.</p>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Run FastQC on all raw subsampled FASTQ files</h3>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+# Run FastQC on all R1 and R2 subsampled files simultaneously
+fastqc raw_data/*_sub_1.fastq.gz raw_data/*_sub_2.fastq.gz \
+    -o qc/raw/ \
+    --threads 4
+
+# Check the output — one .html and one .zip per file
+ls -lh qc/raw/</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: FastQC key options</strong>
+                    <table class="schedule-table">
+                        <tr><th>Option</th><th>Description</th></tr>
+                        <tr><td><code>-o</code></td><td>Output directory for reports</td></tr>
+                        <tr><td><code>--threads</code></td><td>Number of files to process in parallel (set to match <code>--cpus-per-task</code>)</td></tr>
+                        <tr><td><code>--extract</code></td><td>Unzip the output ZIP archives automatically</td></tr>
+                        <tr><td><code>--quiet</code></td><td>Suppress progress messages (useful in scripts)</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>View the FastQC HTML report</h3>
+                <p>FastQC produces one <code>.html</code> report per input file. To view it you need to transfer it to your local computer or open it via the wondow explorer.</p>
+                <pre><code># Option A: Copy a report to your local machine (run this on your LOCAL terminal)
+scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/qc/raw/SRR10009250_sub_1_fastqc.html ~/Desktop/
+
+#Or Option B: use the window explorer and connect to Ibex</pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Interpret key modules for GSE136366</h3>
+                <p>When reviewing the FastQC report for this dataset, pay attention to:</p>
+                <ul>
+                    <li><strong>Per Base Sequence Quality:</strong> Look for a quality drop at the 3&prime; end of reads. Values consistently below Q28 warrant trimming.</li>
+                    <li><strong>Adapter Content:</strong> Check whether Illumina Universal Adapter or TruSeq adapter sequences appear. If any sample shows &gt;5% adapter contamination, trimming is essential.</li>
+                    <li><strong>Sequence Duplication Levels:</strong> RNA-seq libraries almost always show high duplication levels (FAIL) because highly expressed genes contribute many identical reads. This is normal and does not need to be corrected at this stage.</li>
+                    <li><strong>Per Base Sequence Content:</strong> Biased nucleotide composition in the first ~10 bp is a known artefact of random hexamer priming used during library preparation and is expected in RNA-seq data.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ============================================================ -->
+        <!-- Part 3: Adapter Trimming and Quality Filtering with fastp    -->
+        <!-- ============================================================ -->
+        <section id="part3">
+            <h2>Part 3: Adapter Trimming and Quality Filtering with fastp</h2>
+            <p><strong>fastp</strong> is an all-in-one FASTQ preprocessing tool that automatically detects and removes adapter sequences, trims low-quality bases from read ends, filters short reads, and produces a rich HTML + JSON quality report — all in a single fast pass over the data.</p>
+
+            <div class="info-box note">
+                <strong>What fastp does</strong>
+                <ul>
+                    <li><strong>Adapter auto-detection:</strong> Infers adapter sequences from the data itself for paired-end libraries — no need to specify adapter sequences manually.</li>
+                    <li><strong>Quality trimming:</strong> Removes low-quality bases from the 3&prime; end of reads using a sliding window or per-base threshold.</li>
+                    <li><strong>Length filtering:</strong> Discards reads that become too short after trimming (typically &lt;50 bp).</li>
+                    <li><strong>Low-complexity filtering:</strong> Optionally removes reads dominated by repetitive sequences (e.g., poly-A tails).</li>
+                    <li><strong>QC reports:</strong> Produces an HTML report and a machine-readable JSON file per sample, which MultiQC can aggregate.</li>
+                </ul>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Run fastp on all samples using a loop</h3>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+# Loop over every SRR accession and trim each pair
+for srr in $(cat raw_data/SRR_Acc_List.txt); do
+    echo "Trimming $srr ..."
+    fastp \
+        -i raw_data/${srr}_sub_1.fastq.gz \
+        -I raw_data/${srr}_sub_2.fastq.gz \
+        -o trimmed/${srr}_trimmed_1.fastq.gz \
+        -O trimmed/${srr}_trimmed_2.fastq.gz \
+        --json qc/fastp/${srr}_fastp.json \
+        --html qc/fastp/${srr}_fastp.html \
+        --thread 4 \
+        --detect_adapter_for_pe \
+        --qualified_quality_phred 20 \
+        --length_required 50
+done
+
+echo "Trimming complete."
+ls -lh trimmed/</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Understand the key fastp parameters</h3>
+                <div class="info-box note">
+                    <strong>fastp parameter reference</strong>
+                    <table class="schedule-table">
+                        <tr><th>Parameter</th><th>Description</th></tr>
+                        <tr><td><code>-i / -I</code></td><td>Input R1 / R2 FASTQ files</td></tr>
+                        <tr><td><code>-o / -O</code></td><td>Output trimmed R1 / R2 FASTQ files</td></tr>
+                        <tr><td><code>--json</code></td><td>Path for the machine-readable JSON report (used by MultiQC)</td></tr>
+                        <tr><td><code>--html</code></td><td>Path for the human-readable HTML report</td></tr>
+                        <tr><td><code>--thread</code></td><td>Number of CPU threads (match your <code>--cpus-per-task</code>)</td></tr>
+                        <tr><td><code>--detect_adapter_for_pe</code></td><td>Automatically detect adapter sequences for paired-end data — recommended for most Illumina libraries</td></tr>
+                        <tr><td><code>--qualified_quality_phred 20</code></td><td>A base is considered &ldquo;low quality&rdquo; if its Phred score is below Q20. Used for sliding-window trimming and unqualified base counting.</td></tr>
+                        <tr><td><code>--length_required 50</code></td><td>Discard reads shorter than 50 bp after trimming (prevents very short reads from causing misalignments)</td></tr>
+                    </table>
+                </div>
+                <div class="info-box tip">
+                    <strong>Tip: Additional fastp options worth knowing</strong>
+                    <ul>
+                        <li><code>--cut_tail</code> — Enable 3&prime; sliding-window quality trimming (cuts once the window average drops below <code>--cut_mean_quality</code>).</li>
+                        <li><code>--low_complexity_filter</code> — Remove reads with &gt;30% low-complexity content (useful if rRNA removal was not performed).</li>
+                        <li><code>--trim_poly_x</code> — Trim poly-A / poly-T / poly-G / poly-C tails at the 3&prime; end.</li>
+                        <li><code>--dedup</code> — Remove duplicate reads based on exact sequence match (use cautiously for RNA-seq).</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Inspect a fastp HTML report</h3>
+                <p>Each sample produces its own fastp HTML report. Key sections to review:</p>
+                <pre><code># Copy a fastp report to your local machine (run on your LOCAL terminal)
+scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/qc/fastp/SRR10009250_fastp.html ~/Desktop/
+
+#Or Option B: use the window explorer and connect to Ibex</pre>
+                <div class="info-box note">
+                    <strong>Reading the fastp HTML report</strong>
+                    <ul>
+                        <li><strong>Summary table:</strong> Shows total reads before and after filtering, the percentage of reads passing filters, adapter trimming rate, and the percentage of bases at Q20 and Q30. A passing rate below 80% may indicate a library quality issue.</li>
+                        <li><strong>Filtering result:</strong> Breaks down why reads were discarded — low quality, too short after trimming, too many Ns, or low complexity. &ldquo;Too short&rdquo; is the most common category when adapter contamination is present.</li>
+                        <li><strong>Insert size distribution:</strong> Shows the estimated fragment length. A bimodal or very short peak may indicate adapter dimers in the original library.</li>
+                        <li><strong>Quality plots (before/after):</strong> Side-by-side per-base and per-read quality distributions confirm that trimming improved the data.</li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- Part 4: Post-trimming QC with FastQC          -->
+        <!-- ============================================== -->
+        <section id="part4">
+            <h2>Part 4: Post-trimming QC with FastQC</h2>
+            <p>Re-running FastQC on the trimmed reads confirms that adapter contamination has been removed and that per-base quality has improved. Always compare pre- and post-trimming reports before proceeding to alignment.</p>
+
+            <div class="step" data-step="1">
+                <h3>Run FastQC on the trimmed reads</h3>
+                <pre><code">cd /ibex/user/$USER/workshop
+
+# Run FastQC on all trimmed files
+fastqc trimmed/*_trimmed_1.fastq.gz trimmed/*_trimmed_2.fastq.gz \
+    -o qc/trimmed/ \
+    --threads 4
+
+# Verify outputs
+ls -lh qc/trimmed/</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Compare pre- and post-trimming reports</h3>
+                <p>Open the FastQC report for the same sample from <code>qc/raw/</code> and <code>qc/trimmed/</code> side by side. Key differences to expect after trimming:</p>
+                <ul>
+                    <li><strong>Adapter Content:</strong> Should change from WARN/FAIL to PASS — adapter signal should be gone or negligible.</li>
+                    <li><strong>Per Base Sequence Quality:</strong> The 3&prime; quality drop should be reduced or eliminated.</li>
+                    <li><strong>Read count:</strong> Slightly lower because very short reads were discarded (<code>--length_required 50</code>).</li>
+                    <li><strong>Sequence Duplication Levels:</strong> May remain FAIL — this is expected for RNA-seq and is not corrected by trimming.</li>
+                </ul>
+                <div class="info-box tip">
+                    <strong>Tip: When trimming is not enough</strong>
+                    <p>If FastQC still shows high adapter content after trimming, check whether the correct adapter sequences were detected. You can specify adapters manually in fastp using <code>--adapter_sequence</code> and <code>--adapter_sequence_r2</code>. Illumina TruSeq adapter sequences are widely documented.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Part 5: Aggregate Reports with MultiQC        -->
+        <!-- ============================================= -->
+        <section id="part5">
+            <h2>Part 5: Aggregate Reports with MultiQC</h2>
+            <p><strong>MultiQC</strong> scans a directory tree for output files from many bioinformatics tools (FastQC, fastp, STAR, Salmon, Picard, and dozens more) and compiles them into a single interactive HTML report. This makes it easy to compare quality metrics across all samples at a glance.</p>
+
+            <div class="step" data-step="1">
+                <h3>Run MultiQC over all QC outputs</h3>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+# Aggregate FastQC (raw + trimmed) and fastp reports into one report
+multiqc qc/ trimmed/ \
+    --outdir qc/multiqc_report \
+    --filename multiqc_report \
+    --title "GSE136366 RNA-seq QC Report"
+
+# List the output files
+ls -lh qc/multiqc_report/</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Useful MultiQC options</strong>
+                    <table class="schedule-table">
+                        <tr><th>Option</th><th>Description</th></tr>
+                        <tr><td><code>--outdir</code></td><td>Directory for the output report</td></tr>
+                        <tr><td><code>--filename</code></td><td>Base name for the output HTML file</td></tr>
+                        <tr><td><code>--title</code></td><td>Title displayed in the report header</td></tr>
+                        <tr><td><code>--ignore</code></td><td>Exclude files matching a pattern (e.g., <code>--ignore "*_raw_*"</code>)</td></tr>
+                        <tr><td><code>--sample-names</code></td><td>Provide a TSV file to rename samples in the report</td></tr>
+                        <tr><td><code>-f</code></td><td>Force overwrite if a report already exists</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Open the MultiQC report</h3>
+                <pre><code># Copy the MultiQC report to your local machine (run on your LOCAL terminal)
+scp -r username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/qc/multiqc_report/ ~/Desktop/multiqc_report/
+
+#Or Option B: use the window explorer and connect to Ibex</pre>
+
+# Navigate to /ibex/user/&lt;username&gt;/workshop/qc/multiqc_report/
+# Click multiqc_report.html to open in the browser</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Interpret the MultiQC report</h3>
+                <p>The MultiQC report is organized into collapsible sections, one per tool. Here is what to look for:</p>
+                <div class="info-box note">
+                    <strong>Key MultiQC sections for this lab</strong>
+                    <ul>
+                        <li>
+                            <strong>General Statistics table (top of report):</strong> A summary row per sample showing % duplicates, % GC, average read quality, % reads passing FastQC, total reads after fastp filtering, and % adapter trimmed. Use this table to spot any sample that looks like an outlier.
+                        </li>
+                        <li>
+                            <strong>FastQC: Per Sequence Quality Scores:</strong> All samples should cluster together. A sample shifted far to the left (lower quality) may need special attention.
+                        </li>
+                        <li>
+                            <strong>FastQC: Adapter Content:</strong> Compare the raw vs. trimmed adapter plots side by side. After trimming, all lines should be flat near 0%.
+                        </li>
+                        <li>
+                            <strong>fastp: Filtering Results:</strong> A stacked bar chart showing reads that passed vs. were discarded per sample. If a sample loses &gt;20% of reads, investigate the reason (adapter dimers, poor quality, short insert sizes).
+                        </li>
+                        <li>
+                            <strong>fastp: Insert Size:</strong> The insert size distribution across samples. For RNA-seq, a median insert size of 150–300 bp is typical.
+                        </li>
+                    </ul>
+                </div>
+                <div class="info-box tip">
+                    <strong>Tip: Using MultiQC throughout the course</strong>
+                    <p>MultiQC recognizes outputs from STAR (alignment), Salmon (quantification), Picard (duplication), RSeQC (BAM QC), and many other tools. As you complete later labs, simply re-run MultiQC pointing to the entire workshop directory to get an up-to-date combined report covering all analysis steps.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ -->
+        <!-- Exercises    -->
+        <!-- ============ -->
+        <section id="exercises">
+            <h2>Exercises</h2>
+            <p>Work through these exercises using the commands and concepts you have practised in the lab above. Use the tool reports and the MultiQC summary to find the answers.</p>
+
+            <div class="card">
+                <h3>Exercise 1: Filtering rate per sample</h3>
+                <p>What percentage of reads were removed by fastp for one sample of your choice? Check both the fastp HTML report and the JSON file to find this value.</p>
+                <p><em>Hint: Open <code>qc/fastp/SRR10009250_fastp.html</code> and look at the "Filtering result" summary table. Alternatively, inspect the JSON file:</em></p>
+                <pre><code>cat qc/fastp/SRR10009250_fastp.json | grep -A5 "filtering_result"</code></pre>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 2: Adapter detection in raw reads</h3>
+                <p>Do any samples show notable adapter content in the raw FastQC reports? Which adapter sequence(s) were detected by fastp? Are the same adapters present in all samples or do they differ between samples?</p>
+                <p><em>Hint: Check the "Adapter Content" module in the FastQC reports for the raw files in <code>qc/raw/</code>. Cross-reference with the "Adapter" section in the corresponding fastp HTML report.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 3: Quality improvement after trimming</h3>
+                <p>Open the FastQC "Per Base Sequence Quality" plot for the same sample before trimming (<code>qc/raw/</code>) and after trimming (<code>qc/trimmed/</code>). What changed? Did trimming improve the 3&prime; quality drop? Were any other modules upgraded from WARN/FAIL to PASS?</p>
+                <p><em>Hint: The MultiQC report can display pre- and post-trimming FastQC results together. Look for sample name suffixes like <code>_sub_1</code> (raw) vs. <code>_trimmed_1</code> (trimmed) in the per-sample plots.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 4: Read counts after trimming</h3>
+                <p>How many reads remain in the trimmed files across all samples? Use <code>seqkit stats</code> on the trimmed R1 files to produce a summary table.</p>
+                <pre><code>module load seqkit
+seqkit stats trimmed/*_trimmed_1.fastq.gz</code></pre>
+                <p>Compare the read counts to the original 1 million reads per sample. What is the average retention rate across samples?</p>
+            </div>
+        </section>
+
+        <!-- ========= -->
+        <!-- Summary   -->
+        <!-- ========= -->
+        <section id="summary">
+            <h2>Summary</h2>
+            <p>In this lab you have:</p>
+            <ul>
+                <li>Loaded <code>fastqc</code>, <code>fastp</code>, and <code>multiqc</code> modules on the Ibex HPC cluster</li>
+                <li>Run <strong>FastQC</strong> on all raw subsampled FASTQ files from GSE136366 and interpreted the per-base quality, adapter content, and duplication modules</li>
+                <li>Understood <strong>Phred quality scores</strong> and the meaning of the PASS / WARN / FAIL flags in FastQC</li>
+                <li>Trimmed adapters and low-quality bases from all samples using <strong>fastp</strong> in a loop, producing trimmed FASTQ files and per-sample QC reports</li>
+                <li>Re-run FastQC on the trimmed reads and confirmed quality improvements</li>
+                <li>Aggregated all FastQC and fastp reports into a single interactive summary using <strong>MultiQC</strong></li>
+            </ul>
+            <p>Your trimmed reads in <code>/ibex/user/$USER/workshop/trimmed/</code> are now ready for alignment.</p>
+            <div class="info-box note">
+                <strong>Files produced in this lab</strong>
+                <table class="schedule-table">
+                    <tr><th>Location</th><th>Contents</th></tr>
+                    <tr><td><code>trimmed/*_trimmed_1/2.fastq.gz</code></td><td>Adapter-trimmed, quality-filtered paired FASTQ files (input for Lab 4)</td></tr>
+                    <tr><td><code>qc/raw/</code></td><td>FastQC reports for raw reads</td></tr>
+                    <tr><td><code>qc/trimmed/</code></td><td>FastQC reports for trimmed reads</td></tr>
+                    <tr><td><code>qc/fastp/</code></td><td>fastp HTML and JSON reports per sample</td></tr>
+                    <tr><td><code>qc/multiqc_report/multiqc_report.html</code></td><td>Aggregated MultiQC report</td></tr>
+                </table>
+            </div>
+            <p>
+                <a href="lab-public-data.html">&larr; Previous: Lab 2: Public Data Retrieval</a>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                <strong>Next:</strong> <a href="lab-alignment.html">Lab 4: STAR Alignment &rarr;</a>
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        // Add copy buttons to all code blocks
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('pre');
+            codeBlocks.forEach(function(pre) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(pre);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', function() {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.textContent : pre.textContent;
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = 'Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>
