@@ -22,7 +22,14 @@
 
     <main>
         <h1>Lab 3: QC and Preprocessing</h1>
-        <p>In this lab you will assess the quality of the raw subsampled reads from <strong>GSE136366</strong>, trim adapters and low-quality bases using <code>fastp</code>, re-assess quality after trimming, and aggregate all QC reports into a single interactive summary with <code>MultiQC</code>.</p>
+        <p>In this lab you will assess the quality of the <strong>chromosome 11-filtered reads</strong> from <strong>GSE136366</strong>, trim adapters and low-quality bases using <code>fastp</code>, re-assess quality after trimming, and aggregate all QC reports into a single interactive summary with <code>MultiQC</code>.</p>
+
+        <div class="info-box tip">
+            <strong>Why chromosome 11?</strong>
+            <p>Working with chr11-filtered reads (~3–4 million reads per sample) gives enough data for biologically meaningful QC, alignment, and quantification result while keeping runtimes under a few minutes per sample on Ibex. Chromosome 11 encodes many well-studied neuronal genes relevant to TDP-43 biology, making it an ideal subset for this dataset. <br/>
+                From Lab 6 onwards, the full dataset is used since nf-core pipelines are optimised for large-scale data.
+            </p>
+        </div>
 
         <div class="info-box note">
             <strong>Learning Objectives</strong>
@@ -92,16 +99,21 @@ ls -la</code></pre>
             </div>
 
             <div class="step" data-step="4">
-                <h3>Confirm that subsampled FASTQ files are present</h3>
-                <pre><code># List the subsampled input files (from Lab 2)
-ls -lh raw_data/*_sub_1.fastq.gz
-ls -lh raw_data/*_sub_2.fastq.gz
+                <h3>Confirm that chr11 FASTQ files are present</h3>
+                <p>The chr11-filtered FASTQs were downloaded from Zenodo in Lab 2 (Part 5) into <code>chr11_raw_data/</code>. Verify they are present before proceeding:</p>
+                <pre><code>cd /ibex/user/$USER/workshop
 
-# Check the accession list
-cat raw_data/SRR_Acc_List.txt</code></pre>
+ls -lh chr11_raw_data/*.fastq.gz</code></pre>
                 <div class="info-box note">
                     <strong>Expected files</strong>
-                    <p>You should see paired files named <code>SRR10009250_sub_1.fastq.gz</code> / <code>SRR10009250_sub_2.fastq.gz</code> (and similar) for each SRR accession. Each file contains 1 million reads subsampled in Lab 2. If these files are missing, revisit <a href="lab-public-data.html">Lab 2: Public Data Retrieval</a>.</p>
+                    <p>You should see 12 files — one R1 and one R2 per sample:</p>
+                    <pre><code>KO_1_SRR10045016_1.fastq.gz   KO_1_SRR10045016_2.fastq.gz
+KO_2_SRR10045017_1.fastq.gz   KO_2_SRR10045017_2.fastq.gz
+KO_3_SRR10045018_1.fastq.gz   KO_3_SRR10045018_2.fastq.gz
+WT_1_SRR10045019_1.fastq.gz   WT_1_SRR10045019_2.fastq.gz
+WT_2_SRR10045020_1.fastq.gz   WT_2_SRR10045020_2.fastq.gz
+WT_3_SRR10045021_1.fastq.gz   WT_3_SRR10045021_2.fastq.gz</code></pre>
+                    <p>If any files are missing, return to <a href="lab-public-data.html">Lab 2, Part 5</a> and re-run the Zenodo download.</p>
                 </div>
             </div>
         </section>
@@ -141,11 +153,11 @@ cat raw_data/SRR_Acc_List.txt</code></pre>
             </div>
 
             <div class="step" data-step="1">
-                <h3>Run FastQC on all raw subsampled FASTQ files</h3>
+                <h3>Run FastQC on all raw chr11 FASTQ files</h3>
                 <pre><code>cd /ibex/user/$USER/workshop
 
-# Run FastQC on all R1 and R2 subsampled files simultaneously
-fastqc raw_data/*_sub_1.fastq.gz raw_data/*_sub_2.fastq.gz \
+# Run FastQC on all chr11 R1 and R2 files simultaneously
+fastqc chr11_raw_data/*_1.fastq.gz chr11_raw_data/*_2.fastq.gz \
     -o qc/raw/ \
     --threads 4
 
@@ -167,7 +179,7 @@ ls -lh qc/raw/</code></pre>
                 <h3>View the FastQC HTML report</h3>
                 <p>FastQC produces one <code>.html</code> report per input file. To view it you need to transfer it to your local computer or open it via the wondow explorer.</p>
                 <pre><code># Option A: Copy a report to your local machine (run this on your LOCAL terminal)
-scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/qc/raw/SRR10009250_sub_1_fastqc.html ~/Desktop/
+scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/qc/raw/KO_1_SRR10045016_1_fastqc.html ~/Desktop/
 
 #Or Option B: use the window explorer and connect to Ibex</pre>
             </div>
@@ -207,15 +219,16 @@ scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/qc/raw/SRR100092
                 <pre><code>cd /ibex/user/$USER/workshop
 
 # Loop over every SRR accession and trim each pair
-for srr in $(cat raw_data/SRR_Acc_List.txt); do
-    echo "Trimming $srr ..."
+for r1 in chr11_raw_data/*_1.fastq.gz; do
+    sample=$(basename "$r1" _1.fastq.gz)
+    echo "Trimming $sample ..."
     fastp \
-        -i raw_data/${srr}_sub_1.fastq.gz \
-        -I raw_data/${srr}_sub_2.fastq.gz \
-        -o trimmed/${srr}_trimmed_1.fastq.gz \
-        -O trimmed/${srr}_trimmed_2.fastq.gz \
-        --json qc/fastp/${srr}_fastp.json \
-        --html qc/fastp/${srr}_fastp.html \
+        -i chr11_raw_data/${sample}_1.fastq.gz \
+        -I chr11_raw_data/${sample}_2.fastq.gz \
+        -o trimmed/${sample}_trimmed_1.fastq.gz \
+        -O trimmed/${sample}_trimmed_2.fastq.gz \
+        --json qc/fastp/${sample}_fastp.json \
+        --html qc/fastp/${sample}_fastp.html \
         --thread 4 \
         --detect_adapter_for_pe \
         --qualified_quality_phred 20 \
@@ -257,7 +270,7 @@ ls -lh trimmed/</code></pre>
                 <h3>Inspect a fastp HTML report</h3>
                 <p>Each sample produces its own fastp HTML report. Key sections to review:</p>
                 <pre><code># Copy a fastp report to your local machine (run on your LOCAL terminal)
-scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/qc/fastp/SRR10009250_fastp.html ~/Desktop/
+scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/qc/fastp/KO_1_SRR10045016_fastp.html ~/Desktop/
 
 #Or Option B: use the window explorer and connect to Ibex</pre>
                 <div class="info-box note">
@@ -281,9 +294,9 @@ scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/qc/fastp/SRR1000
 
             <div class="step" data-step="1">
                 <h3>Run FastQC on the trimmed reads</h3>
-                <pre><code">cd /ibex/user/$USER/workshop
+                <pre><code>cd /ibex/user/$USER/workshop
 
-# Run FastQC on all trimmed files
+# Run FastQC on all trimmed chr11 files
 fastqc trimmed/*_trimmed_1.fastq.gz trimmed/*_trimmed_2.fastq.gz \
     -o qc/trimmed/ \
     --threads 4
@@ -393,7 +406,7 @@ scp -r username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/qc/multiqc_re
                 <h3>Exercise 1: Filtering rate per sample</h3>
                 <p>What percentage of reads were removed by fastp for one sample of your choice? Check both the fastp HTML report and the JSON file to find this value.</p>
                 <p><em>Hint: Open <code>qc/fastp/SRR10009250_fastp.html</code> and look at the "Filtering result" summary table. Alternatively, inspect the JSON file:</em></p>
-                <pre><code>cat qc/fastp/SRR10009250_fastp.json | grep -A5 "filtering_result"</code></pre>
+                <pre><code>cat qc/fastp/KO_1_SRR10045016_fastp.json | grep -A5 "filtering_result"</code></pre>
             </div>
 
             <div class="card">
@@ -405,7 +418,7 @@ scp -r username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/qc/multiqc_re
             <div class="card">
                 <h3>Exercise 3: Quality improvement after trimming</h3>
                 <p>Open the FastQC "Per Base Sequence Quality" plot for the same sample before trimming (<code>qc/raw/</code>) and after trimming (<code>qc/trimmed/</code>). What changed? Did trimming improve the 3&prime; quality drop? Were any other modules upgraded from WARN/FAIL to PASS?</p>
-                <p><em>Hint: The MultiQC report can display pre- and post-trimming FastQC results together. Look for sample name suffixes like <code>_sub_1</code> (raw) vs. <code>_trimmed_1</code> (trimmed) in the per-sample plots.</em></p>
+                <p><em>Hint: The MultiQC report can display pre- and post-trimming FastQC results together. Look for sample names like <code>KO_1_SRR10045016_1</code> (raw) vs. <code>KO_1_SRR10045016_trimmed_1</code> (trimmed) in the per-sample plots.</em></p>
             </div>
 
             <div class="card">
@@ -413,7 +426,7 @@ scp -r username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/qc/multiqc_re
                 <p>How many reads remain in the trimmed files across all samples? Use <code>seqkit stats</code> on the trimmed R1 files to produce a summary table.</p>
                 <pre><code>module load seqkit
 seqkit stats trimmed/*_trimmed_1.fastq.gz</code></pre>
-                <p>Compare the read counts to the original 1 million reads per sample. What is the average retention rate across samples?</p>
+                <p>Compare the read counts to the chr11 input files (<code>chr11_raw_data/*_1.fastq.gz</code>). What is the average retention rate across samples?</p>
             </div>
         </section>
 
@@ -425,7 +438,7 @@ seqkit stats trimmed/*_trimmed_1.fastq.gz</code></pre>
             <p>In this lab you have:</p>
             <ul>
                 <li>Loaded <code>fastqc</code>, <code>fastp</code>, and <code>multiqc</code> modules on the Ibex HPC cluster</li>
-                <li>Run <strong>FastQC</strong> on all raw subsampled FASTQ files from GSE136366 and interpreted the per-base quality, adapter content, and duplication modules</li>
+                <li>Run <strong>FastQC</strong> on all chr11-filtered FASTQ files from GSE136366 and interpreted the per-base quality, adapter content, and duplication modules</li>
                 <li>Understood <strong>Phred quality scores</strong> and the meaning of the PASS / WARN / FAIL flags in FastQC</li>
                 <li>Trimmed adapters and low-quality bases from all samples using <strong>fastp</strong> in a loop, producing trimmed FASTQ files and per-sample QC reports</li>
                 <li>Re-run FastQC on the trimmed reads and confirmed quality improvements</li>
@@ -436,7 +449,7 @@ seqkit stats trimmed/*_trimmed_1.fastq.gz</code></pre>
                 <strong>Files produced in this lab</strong>
                 <table class="schedule-table">
                     <tr><th>Location</th><th>Contents</th></tr>
-                    <tr><td><code>trimmed/*_trimmed_1/2.fastq.gz</code></td><td>Adapter-trimmed, quality-filtered paired FASTQ files (input for Lab 4)</td></tr>
+                    <tr><td><code>trimmed/*_trimmed_1/2.fastq.gz</code></td><td>Adapter-trimmed, quality-filtered chr11 paired FASTQ files (input for Lab 4)</td></tr>
                     <tr><td><code>qc/raw/</code></td><td>FastQC reports for raw reads</td></tr>
                     <tr><td><code>qc/trimmed/</code></td><td>FastQC reports for trimmed reads</td></tr>
                     <tr><td><code>qc/fastp/</code></td><td>fastp HTML and JSON reports per sample</td></tr>

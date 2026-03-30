@@ -174,6 +174,17 @@ ls -la</code></pre>
             <h2>Part 3: Downloading Raw Sequencing Data with sra-tools</h2>
             <p>The SRA Toolkit provides command-line tools to download and convert SRA data. The two main commands are <code>prefetch</code> (downloads compressed .sra files) and <code>fasterq-dump</code> (converts .sra to FASTQ).</p>
 
+            <div class="info-box tip">
+                <strong>Already on Ibex? Copy from the shared course directory (faster)</strong>
+                <p>The full GSE136366 FASTQs are available at a shared path on Ibex. If you have access, copying is instant and skips the SRA download entirely:</p>
+                <pre><code>SHARED=/biocorelab/BIX/resources/datasets/rnaseq/GSE136366/raw_fastq
+
+cp ${SHARED}/*.fastq.gz /ibex/user/$USER/workshop/raw_data/
+
+ls -lh /ibex/user/$USER/workshop/raw_data/</code></pre>
+                <p>If that path is accessible, you can <strong>skip Steps 1–4 of this part</strong> and continue with Part 4. If not, follow the SRA download steps below.</p>
+            </div>
+
             <div class="step" data-step="1">
                 <h3>Navigate to your raw data directory</h3>
                 <pre><code>cd /ibex/user/$USER/workshop/raw_data</code></pre>
@@ -259,7 +270,7 @@ ls -lh *.fastq.gz</code></pre>
 # ---------- environment ----------
 cd /ibex/user/$USER/workshop/raw_data
 
-module load sra-tools
+module load sratoolkit
 
 mkdir -p logs
 
@@ -493,39 +504,83 @@ ls -lh</code></pre>
         </section>
 
         <section>
-            <h2>Part 5: Subsampling Data</h2>
-            <p>Large datasets can take a long time to process. Subsampling creates a smaller representative subset that is useful for testing pipelines and for workshop exercises.</p>
+            <h2>Part 5: Copy Chr11 Subset for Labs 3–5</h2>
+            <p>For the hands-on QC, alignment, and quantification labs (Labs 3–5) we work with a <strong>chromosome 11-filtered subset</strong> of GSE136366. These files are pre-prepared and available on the Ibex shared storage — copying takes only a few seconds.</p>
 
             <div class="step" data-step="1">
-                <h3>Subsample GSE136366 samples to 1 million reads each</h3>
-                <p>Full RNA-seq datasets can be large. For hands-on exercises, subsample each sample to 1 million read pairs:</p>
-                <pre><code>cd /ibex/user/$USER/workshop/raw_data
+                <h3>Copy the chr11 FASTQ files from the shared course directory</h3>
+                <pre><code>cd /ibex/user/$USER/workshop
 
-# Subsample each sample — loop over all downloaded FASTQs
-# -n 1000000: keep 1 million reads
-# -s 42: fixed seed for reproducibility
-for srr in $(cat SRR_Acc_List.txt); do
-    echo "Subsampling $srr ..."
-    seqkit sample -n 1000000 -s 42 ${srr}_1.fastq.gz -o ${srr}_sub_1.fastq.gz
-    seqkit sample -n 1000000 -s 42 ${srr}_2.fastq.gz -o ${srr}_sub_2.fastq.gz
-done
+# Create the dedicated directory for chr11 data
+mkdir -p chr11_raw_data
 
-# Verify the subsampled files
-seqkit stats *_sub_1.fastq.gz</code></pre>
+# Copy all chr11 FASTQs from the shared Ibex path
+cp /biocorelab/BIX/resources/datasets/rnaseq/GSE136366_KO_chr11/*.fastq.gz chr11_raw_data/
+
+# Verify — you should see 12 files (6 samples × 2 paired-end reads)
+ls -lh chr11_raw_data/</code></pre>
+                <div class="info-box note">
+                    <strong>Expected files</strong>
+                    <pre><code>KO_1_SRR10045016_1.fastq.gz   KO_1_SRR10045016_2.fastq.gz
+KO_2_SRR10045017_1.fastq.gz   KO_2_SRR10045017_2.fastq.gz
+KO_3_SRR10045018_1.fastq.gz   KO_3_SRR10045018_2.fastq.gz
+WT_1_SRR10045019_1.fastq.gz   WT_1_SRR10045019_2.fastq.gz
+WT_2_SRR10045020_1.fastq.gz   WT_2_SRR10045020_2.fastq.gz
+WT_3_SRR10045021_1.fastq.gz   WT_3_SRR10045021_2.fastq.gz</code></pre>
+                    <p><strong>Naming convention:</strong> <code>{condition}_{replicate}_{SRR}_{read}.fastq.gz</code> — <code>KO</code> = TDP-43 knockdown, <code>WT</code> = wild type (control).</p>
+                </div>
             </div>
 
             <div class="step" data-step="2">
-                <h3>Organize your workspace</h3>
-                <pre><code># Create a clear directory structure for the course
-mkdir -p /ibex/user/$USER/workshop/{raw_data,trimmed,aligned,counts,results}
-
-# List final directory structure
-ls /ibex/user/$USER/workshop/</code></pre>
+                <h3>Verify read counts</h3>
+                <pre><code>module load seqkit
+seqkit stats chr11_raw_data/*_1.fastq.gz</code></pre>
+                <p>Expect approximately <strong>3–4 million reads per sample</strong> — sufficient for biologically meaningful QC, alignment, and quantification on chromosome 11.</p>
             </div>
+        </section>
 
-            <div class="info-box note">
-                <strong>Why Subsample?</strong>
-                <p>Subsampling is useful when you want to quickly test a pipeline, debug parameters, or run a workshop exercise without waiting hours for full datasets to process. Always use the <code>-s</code> (seed) flag so results are reproducible.</p>
+        <section>
+            <h2>Part 6: Subsampling Full Data (Optional)</h2>
+            <p>If you want to quickly test a pipeline with a minimal dataset, you can subsample the full SRA FASTQs to 1 million reads. This is separate from the chr11 data used in Labs 3–5.</p>
+
+            <div class="step" data-step="1">
+                <h3>Subsample GSE136366 full FASTQs to 1 million reads</h3>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+mkdir -p subsampled_raw_data
+
+for srr in $(cat raw_data/SRR_Acc_List.txt); do
+    echo "Subsampling $srr ..."
+    seqkit sample -n 1000000 -s 42 raw_data/${srr}_1.fastq.gz -o subsampled_raw_data/${srr}_sub_1.fastq.gz
+    seqkit sample -n 1000000 -s 42 raw_data/${srr}_2.fastq.gz -o subsampled_raw_data/${srr}_sub_2.fastq.gz
+done
+
+seqkit stats subsampled_raw_data/*_sub_1.fastq.gz</code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>Part 7: Organizing Your Workspace</h2>
+
+            <div class="step" data-step="1">
+                <h3>Create the full directory structure</h3>
+                <pre><code>mkdir -p /ibex/user/$USER/workshop/{raw_data,chr11_raw_data,subsampled_raw_data,trimmed,aligned,counts,results,references,logs}
+
+ls /ibex/user/$USER/workshop/</code></pre>
+                <div class="info-box note">
+                    <strong>Directory conventions</strong>
+                    <table class="schedule-table">
+                        <tr><th>Directory</th><th>Contents</th><th>Used in</th></tr>
+                        <tr><td><code>raw_data/</code></td><td>Original full FASTQ files downloaded from SRA</td><td>Lab 6 onwards (nf-core)</td></tr>
+                        <tr><td><code>chr11_raw_data/</code></td><td>Chr11-filtered FASTQs from Zenodo (KO/WT naming)</td><td>Labs 3–5</td></tr>
+                        <tr><td><code>subsampled_raw_data/</code></td><td>1 M read subsets of the full FASTQs</td><td>Pipeline testing only</td></tr>
+                        <tr><td><code>trimmed/</code></td><td>fastp-trimmed FASTQs</td><td>Labs 3–5</td></tr>
+                        <tr><td><code>aligned/</code></td><td>STAR BAM files</td><td>Lab 4</td></tr>
+                        <tr><td><code>counts/</code></td><td>Salmon quantification output</td><td>Lab 5</td></tr>
+                        <tr><td><code>references/</code></td><td>Reference genome, annotation, and indexes</td><td>Labs 4–5</td></tr>
+                        <tr><td><code>results/</code></td><td>Final analysis outputs (DEA, plots, reports)</td><td>Labs 7–10</td></tr>
+                    </table>
+                </div>
             </div>
         </section>
 
@@ -572,12 +627,11 @@ grep -P "\tgene\t" references/GRCh38_genes.gtf | wc -l</code></pre>
 
             <div class="card">
                 <h3>Exercise 1: Read Counts</h3>
-                <p>How many reads are in the full (non-subsampled) FASTQ for one GSE136366 sample? Compare it to the subsampled version.</p>
+                <p>How many reads are in the chr11-filtered FASTQ for one sample? Compare it to one of the full SRA FASTQs in <code>raw_data/</code>.</p>
                 <details>
                     <summary>Hint</summary>
-                    <pre><code>SRR=$(head -1 raw_data/SRR_Acc_List.txt)
-seqkit stats raw_data/${SRR}_1.fastq.gz
-seqkit stats raw_data/${SRR}_sub_1.fastq.gz</code></pre>
+                    <pre><code>seqkit stats chr11_raw_data/KO_1_SRR10045016_1.fastq.gz
+seqkit stats raw_data/$(head -1 raw_data/SRR_Acc_List.txt)_1.fastq.gz</code></pre>
                 </details>
             </div>
 
@@ -615,13 +669,14 @@ seqkit stats raw_data/${SRR}_sub_1.fastq.gz</code></pre>
             <p>In this lab, you have:</p>
             <ul>
                 <li>Learned how to navigate NCBI GEO and SRA to find public sequencing datasets</li>
-                <li>Downloaded raw sequencing data from SRA using <code>prefetch</code> and <code>fasterq-dump</code></li>
+                <li>Downloaded raw sequencing data from SRA using <code>prefetch</code> and <code>fasterq-dump</code> (or copied from the shared Ibex path)</li>
                 <li>Learned to batch-download multiple SRA files using an accession list file</li>
                 <li>Downloaded a reference genome using <strong>NCBI <code>datasets</code></strong> CLI (Option A)</li>
                 <li>Downloaded a reference genome from <strong>Ensembl FTP</strong> using <code>wget</code> (Option B)</li>
                 <li>Explored genome metadata using <code>dataformat</code></li>
-                <li>Used <code>seqkit</code> to summarize and subsample FASTQ data</li>
-                <li>Organized all data with a proper directory structure on Ibex</li>
+                <li>Downloaded the <strong>chr11-filtered subset</strong> from Zenodo into <code>chr11_raw_data/</code> for use in Labs 3–5</li>
+                <li>Used <code>seqkit</code> to summarize FASTQ data</li>
+                <li>Organized all data with a clear directory structure on Ibex (<code>raw_data/</code>, <code>chr11_raw_data/</code>, <code>trimmed/</code>, etc.)</li>
             </ul>
             <p><strong>Next:</strong> <a href="lab-qc-preprocessing.html">Lab 3: FastQC, fastp, and MultiQC</a></p>
         </section>

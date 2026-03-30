@@ -22,11 +22,11 @@
 
     <main>
         <h1>Lab 5: Quantification with Salmon &amp; Exploratory Analysis</h1>
-        <p>In this lab you will quantify gene expression for all GSE136366 samples using <strong>Salmon</strong> quasi-mapping, then import the results into R, apply variance-stabilising transformation (VST), and produce a PCA plot and sample-distance heatmap to assess sample quality.</p>
+        <p>In this lab you will quantify gene expression for all GSE136366 samples using <strong>Salmon</strong> quasi-mapping against the <strong>chromosome 11 transcriptome</strong>, then import the results into R, apply variance-stabilising transformation (VST), and produce a PCA plot and sample-distance heatmap to assess sample quality.</p>
 
         <div class="info-box tip">
-            <strong>Using subsampled data in this lab</strong>
-            <p>The input files (<code>trimmed/${SRR}_trimmed_1/2.fastq.gz</code>) are the trimmed, <strong>subsampled</strong> reads produced in Labs 2 and 3 — each sample contains <strong>1 million read pairs</strong>. Salmon finishes quantifying a single subsampled sample in <strong>under 1 minute</strong>. All commands are identical to a full-scale analysis; only the data size differs. Expect lower per-gene counts than a full dataset, which is expected and appropriate for a workshop exercise.
+            <strong>Using chr11 data in this lab</strong>
+            <p>The input files (<code>trimmed/${SRR}_chr11_trimmed_1/2.fastq.gz</code>) are the chr11-filtered trimmed reads from Lab 3 (~3–4 M reads per sample). Salmon is built against a <strong>chr11-only transcriptome index</strong>, so quantification completes in <strong>under 1 minute per sample</strong>. The resulting count matrices contain only chr11 genes — enough for meaningful exploratory analysis and visualization. From Lab 6 onwards, the full dataset is used.
             </p>
         </div>
 
@@ -54,8 +54,8 @@
 ssh username@ilogin.ibex.kaust.edu.sa
 
 # Start an interactive session (never run analyses on login nodes!)
-# Subsampled data (1M reads): 8G RAM and 1 hour is plenty for Salmon
-srun --pty --time=01:00:00 --mem=8G --cpus-per-task=8 bash</code></pre>
+# Chr11 Salmon index is small; 4G RAM and 30 min is sufficient
+srun --pty --time=00:30:00 --mem=4G --cpus-per-task=8 bash</code></pre>
             </div>
 
             <div class="step" data-step="2">
@@ -109,30 +109,28 @@ ls -la</code></pre>
             </div>
 
             <div class="step" data-step="1">
-                <h3>Download the Ensembl human transcriptome (cDNA)</h3>
+                <h3>Copy the chr11 transcriptome from the shared course directory</h3>
                 <pre><code>cd /ibex/user/$USER/workshop
 
-# Download Ensembl release 110 cDNA sequences for Homo sapiens
-wget https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
+SHARED=/biocorelab/BIX/resources/genomes/workshops/human-chr11
 
-# Move to the references directory with a cleaner name
-mv Homo_sapiens.GRCh38.cdna.all.fa.gz references/GRCh38_transcriptome.fa.gz
+# Chr11 cDNA (transcript sequences only, ~5 MB)
+cp ${SHARED}/GRCh38.cdna.chr11.fa references/chr11/
 
-# Verify the file is present
-ls -lh references/</code></pre>
+ls -lh references/chr11/</code></pre>
                 <div class="info-box note">
-                    <strong>Ensembl cDNA vs genome FASTA</strong>
-                    <p>The cDNA file contains spliced transcript sequences (one entry per annotated transcript isoform). It is much smaller than the full genome (~200 MB vs ~3 GB) and is exactly what Salmon needs to build its index.</p>
+                    <strong>What is a transcriptome FASTA?</strong>
+                    <p>Salmon does not align reads to the genome. Instead it uses a k-mer index built from all annotated transcript sequences. The chr11 cDNA file contains spliced transcript sequences for genes on chromosome 11 only (~5 MB, vs ~200 MB for the full human transcriptome). This is exactly what Salmon needs and makes index building near-instantaneous.</p>
                 </div>
             </div>
 
             <div class="step" data-step="2">
-                <h3>Build the Salmon index</h3>
+                <h3>Build the Salmon chr11 index</h3>
                 <pre><code>salmon index \
-    -t references/GRCh38_transcriptome.fa.gz \
-    -i references/salmon_index \
+    -t references/chr11/GRCh38.cdna.chr11.fa \
+    -i references/salmon_index_chr11 \
     --threads 8</code></pre>
-                <p>This takes roughly <strong>5–10 minutes</strong> and only needs to be done once. The resulting <code>references/salmon_index/</code> directory can be reused for all samples and future datasets mapped to the same annotation release.</p>
+                <p>This completes in <strong>under 1 minute</strong> for the chr11 transcriptome. The resulting <code>references/salmon_index_chr11/</code> directory is reused for all samples.</p>
             </div>
         </section>
 
@@ -164,23 +162,24 @@ ls -lh references/</code></pre>
 
 mkdir -p counts/salmon
 
-for srr in $(cat raw_data/SRR_Acc_List.txt); do
-    echo "=== Quantifying $srr ==="
+for r1 in trimmed/*_trimmed_1.fastq.gz; do
+    sample=$(basename "$r1" _trimmed_1.fastq.gz)
+    echo "=== Quantifying $sample ==="
     salmon quant \
-        -i references/salmon_index \
+        -i references/salmon_index_chr11 \
         -l A \
-        -1 trimmed/${srr}_trimmed_1.fastq.gz \
-        -2 trimmed/${srr}_trimmed_2.fastq.gz \
+        -1 trimmed/${sample}_trimmed_1.fastq.gz \
+        -2 trimmed/${sample}_trimmed_2.fastq.gz \
         --validateMappings \
         --gcBias \
         --seqBias \
         --threads 8 \
-        -o counts/salmon/${srr}
-    echo "Done: $srr"
+        -o counts/salmon/${sample}
+    echo "Done: $sample"
 done</code></pre>
                 <div class="info-box note">
                     <strong>Expected runtime</strong>
-                    <p>Each subsampled sample (1 M read pairs) takes well under 1 minute. The full loop for all GSE136366 samples should complete in a few minutes within your interactive session.</p>
+                    <p>Each chr11 sample (~3–4 M reads against the chr11 index) takes well under 1 minute. The full loop for all 6 GSE136366 samples completes in a few minutes.</p>
                 </div>
             </div>
 
@@ -188,7 +187,7 @@ done</code></pre>
                 <h3>Inspect Salmon output files</h3>
                 <p>Each sample gets its own output directory containing several files. The most important is <code>quant.sf</code>:</p>
                 <pre><code># View the quant.sf file for the first sample
-head counts/salmon/$(head -1 raw_data/SRR_Acc_List.txt)/quant.sf</code></pre>
+head counts/salmon/KO_1_SRR10045016/quant.sf</code></pre>
                 <div class="info-box note">
                     <strong>quant.sf Column Descriptions</strong>
                     <table class="schedule-table">
@@ -206,22 +205,23 @@ head counts/salmon/$(head -1 raw_data/SRR_Acc_List.txt)/quant.sf</code></pre>
                 <h3>Check detected library strandedness</h3>
                 <p>Salmon automatically detects the library type. Review what it found for your data:</p>
                 <pre><code># View the library format counts JSON for the first sample
-cat counts/salmon/$(head -1 raw_data/SRR_Acc_List.txt)/lib_format_counts.json</code></pre>
+cat counts/salmon/KO_1_SRR10045016/lib_format_counts.json</code></pre>
                 <div class="info-box note">
                     <strong>What Does the Strandedness Detection Tell You?</strong>
-                    <p>The <code>lib_format_counts.json</code> file reports how many reads matched each possible library orientation. A high count for <code>SF</code> or <code>SR</code> indicates a stranded library; roughly equal counts for <code>IU</code> (inward, unstranded) indicate an unstranded library. For GSE136366, expect an unstranded paired-end library (<code>IU</code>).</p>
+                    <p>The <code>lib_format_counts.json</code> file reports how many reads matched each possible library orientation. A high count for <code>SF</code> or <code>SR</code> indicates a stranded library; roughly equal counts for <code>IU</code> (inward, unstranded) indicate an unstranded library. For GSE136366, expect an unstranded paired-end library (<code>IU</code>). The strandedness detected from chr11 reads should match the full dataset.</p>
                 </div>
             </div>
 
             <div class="step" data-step="4">
                 <h3>Verify all samples completed successfully</h3>
                 <pre><code># Confirm each sample has a quant.sf file
-for srr in $(cat raw_data/SRR_Acc_List.txt); do
-    f="counts/salmon/${srr}/quant.sf"
+for r1 in trimmed/*_trimmed_1.fastq.gz; do
+    sample=$(basename "$r1" _trimmed_1.fastq.gz)
+    f="counts/salmon/${sample}/quant.sf"
     if [ -f "$f" ]; then
-        echo "OK: $srr  ($(wc -l &lt; $f) transcripts)"
+        echo "OK: $sample  ($(wc -l &lt; $f) transcripts)"
     else
-        echo "MISSING: $srr"
+        echo "MISSING: $sample"
     fi
 done</code></pre>
             </div>
@@ -272,7 +272,7 @@ packageVersion("DESeq2")</code></pre>
                 <h3>Create a transcript-to-gene mapping from the GTF</h3>
                 <p>Salmon quantifies at the <em>transcript</em> level. We need a mapping table to aggregate transcript counts to gene-level counts. <code>GenomicFeatures</code> can build this directly from the GTF file:</p>
                 <pre><code># Build a TxDb object from the GTF annotation
-txdb &lt;- makeTxDbFromGFF("references/GRCh38_genes.gtf", format = "gtf")
+txdb &lt;- makeTxDbFromGFF("references/chr11/GRCh38.chr11.gtf", format = "gtf")
 
 # Extract the transcript-to-gene mapping
 k &lt;- keys(txdb, keytype = "TXNAME")
@@ -289,13 +289,14 @@ dim(tx2gene)  # should have one row per transcript</code></pre>
 
             <div class="step" data-step="4">
                 <h3>Import Salmon counts with tximport</h3>
-                <pre><code># Read the list of SRR accessions
-srr_ids &lt;- readLines("raw_data/SRR_Acc_List.txt")
-srr_ids  # preview
+                <pre><code># List sample directories created by Salmon
+salmon_dirs &lt;- list.dirs("counts/salmon", full.names = FALSE, recursive = FALSE)
+sample_ids  &lt;- salmon_dirs
+sample_ids  # preview
 
 # Build paths to each quant.sf file
-quant_files &lt;- file.path("counts/salmon", srr_ids, "quant.sf")
-names(quant_files) &lt;- srr_ids
+quant_files &lt;- file.path("counts/salmon", sample_ids, "quant.sf")
+names(quant_files) &lt;- sample_ids
 
 # Verify all files exist before importing
 stopifnot(all(file.exists(quant_files)))
@@ -304,8 +305,9 @@ stopifnot(all(file.exists(quant_files)))
 txi &lt;- tximport(quant_files, type = "salmon", tx2gene = tx2gene)
 
 # Explore the result
-names(txi)          # components: counts, abundance (TPM), length
-dim(txi$counts)     # rows = genes, columns = samples
+names(txi)           # components: counts, abundance (TPM), length
+dim(txi$counts)      # rows = genes (chr11 only), columns = 6 samples
+colnames(txi$counts) # should be KO_1_SRR10045016, KO_2_..., WT_1_..., etc.
 head(txi$counts)</code></pre>
 
                 <div class="info-box note">
@@ -319,12 +321,11 @@ head(txi$counts)</code></pre>
             <div class="step" data-step="5">
                 <h3>Create sample metadata (coldata)</h3>
                 <p>Define the experimental conditions for each sample. Adapt the condition labels to the actual GSE136366 design (TDP-43 knockdown vs control):</p>
-                <pre><code># Build a coldata data frame
-# Adjust the condition vector to match the actual sample groups in GSE136366
+                <pre><code># Build a coldata data frame matching the KO/WT naming from the Zenodo files
 coldata &lt;- data.frame(
-    sample    = srr_ids,
-    condition = c(rep("control", 3), rep("knockdown", 3)),  # example — verify against GEO metadata
-    row.names = srr_ids
+    sample    = sample_ids,
+    condition = ifelse(grepl("^KO", sample_ids), "knockdown", "control"),
+    row.names = sample_ids
 )
 
 coldata</code></pre>
@@ -337,7 +338,7 @@ coldata</code></pre>
             <div class="step" data-step="6">
                 <h3>Build a DESeq2 object and apply VST</h3>
                 <pre><code># Create DESeqDataSet from tximport output
-dds &lt;- DESeqDataSetFromTximport(txi, colData = coldata, design = ~condition)
+dds &lt;- DESeqDataSetFromTximport(txi, colData = coldata, design = ~ condition)
 
 # Filter out genes with very low counts (speeds up analysis and improves statistics)
 dds &lt;- dds[rowSums(counts(dds)) &gt;= 10, ]
