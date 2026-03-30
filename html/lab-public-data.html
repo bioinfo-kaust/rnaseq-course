@@ -208,6 +208,105 @@ ls -lh *.fastq.gz</code></pre>
                 </div>
             </div>
 
+            <div class="step" data-step="4">
+                <h3>Submit the download as an sbatch job (recommended)</h3>
+                <p>Downloading and converting all GSE136366 samples can take several hours. Running this interactively risks losing work if your SSH session disconnects. Instead, submit it as a <strong>SLURM batch job</strong> on Ibex using <code>sbatch</code>.</p>
+
+                <div class="info-box tip">
+                    <strong>Interactive vs. batch jobs</strong>
+                    <p>Use an <strong>interactive session</strong> (<code>srun --pty bash</code>) for short exploratory tasks (&lt; 30 min) where you need immediate feedback. Use <strong>sbatch</strong> for anything that runs longer — downloads, alignments, workflow runs. The job continues even if you close your terminal.</p>
+                </div>
+
+                <h4 style="margin-top:1.2rem;">Understanding sbatch directives</h4>
+                <p>Every sbatch script starts with a shebang line (<code>#!/bin/bash</code>) followed by <code>#SBATCH</code> comment lines. SLURM reads these before executing the script. Here is what each directive means:</p>
+
+                <table style="width:100%; border-collapse:collapse; font-size:0.9rem; margin:1rem 0;">
+                    <thead>
+                        <tr style="background:#e8f4fd;">
+                            <th style="padding:0.5rem 0.8rem; text-align:left; border-bottom:2px solid #2196F3;">Directive</th>
+                            <th style="padding:0.5rem 0.8rem; text-align:left; border-bottom:2px solid #2196F3;">Meaning</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="padding:0.4rem 0.8rem;"><code>--job-name</code></td><td style="padding:0.4rem 0.8rem;">A human-readable label for the job (shown in <code>squeue</code> output).</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.4rem 0.8rem;"><code>--ntasks</code></td><td style="padding:0.4rem 0.8rem;">Number of MPI tasks (processes). For serial or multi-threaded jobs, keep this at <code>1</code>.</td></tr>
+                        <tr><td style="padding:0.4rem 0.8rem;"><code>--cpus-per-task</code></td><td style="padding:0.4rem 0.8rem;">CPU cores allocated per task. Match this to the <code>--threads</code> argument of your tool.</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.4rem 0.8rem;"><code>--mem</code></td><td style="padding:0.4rem 0.8rem;">Total RAM for the job (e.g. <code>16G</code>). Request enough — too little causes an out-of-memory kill; too much wastes queue priority.</td></tr>
+                        <tr><td style="padding:0.4rem 0.8rem;"><code>--time</code></td><td style="padding:0.4rem 0.8rem;">Wall-clock time limit in <code>HH:MM:SS</code>. The job is killed if it runs longer. Estimate generously for downloads.</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.4rem 0.8rem;"><code>--partition</code></td><td style="padding:0.4rem 0.8rem;">The queue to submit to. Use <code>batch</code> for general compute jobs on Ibex.</td></tr>
+                        <tr><td style="padding:0.4rem 0.8rem;"><code>--output</code></td><td style="padding:0.4rem 0.8rem;">File path for standard output (stdout). <code>%j</code> is replaced by the job ID at runtime.</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.4rem 0.8rem;"><code>--error</code></td><td style="padding:0.4rem 0.8rem;">File path for standard error (stderr). Separate from stdout so errors are easy to find.</td></tr>
+                        <tr><td style="padding:0.4rem 0.8rem;"><code>--mail-type</code></td><td style="padding:0.4rem 0.8rem;">When to email you: <code>BEGIN</code>, <code>END</code>, <code>FAIL</code>, or <code>ALL</code>.</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.4rem 0.8rem;"><code>--mail-user</code></td><td style="padding:0.4rem 0.8rem;">Your email address for job notifications.</td></tr>
+                    </tbody>
+                </table>
+
+                <h4 style="margin-top:1.2rem;">Create the submission script</h4>
+                <p>Save the script below as <code>download_sra.sh</code> in your <code>raw_data</code> directory:</p>
+                <pre><code>cat &gt; /ibex/user/$USER/workshop/raw_data/download_sra.sh &lt;&lt; 'EOF'
+#!/bin/bash
+#SBATCH --job-name=sra_download       # Name shown in squeue
+#SBATCH --ntasks=1                    # Single task (not MPI)
+#SBATCH --cpus-per-task=8             # 8 threads for fasterq-dump
+#SBATCH --mem=16G                     # RAM — fasterq-dump needs ~4G per thread
+#SBATCH --time=12:00:00               # Up to 12 hours for all samples
+#SBATCH --partition=batch             # General compute queue on Ibex
+#SBATCH --output=logs/sra_download_%j.out   # stdout log; %j = job ID
+#SBATCH --error=logs/sra_download_%j.err    # stderr log
+#SBATCH --mail-type=END,FAIL          # Email when done or if it fails
+#SBATCH --mail-user=your.email@kaust.edu.sa # Replace with your email
+
+# ---------- environment ----------
+cd /ibex/user/$USER/workshop/raw_data
+
+module load sra-tools
+
+mkdir -p logs
+
+ACC_LIST="SRR_Acc_List.txt"
+
+# ---------- step 1: prefetch (download .sra files) ----------
+echo "[$(date)] Starting prefetch for $(wc -l &lt; $ACC_LIST) accessions ..."
+prefetch --option-file "$ACC_LIST" --max-size 50G
+
+# ---------- step 2: convert .sra to paired FASTQ ----------
+echo "[$(date)] Starting fasterq-dump ..."
+while read srr; do
+    echo "  Converting $srr ..."
+    fasterq-dump \
+        --split-files \
+        --threads 8 \
+        --outdir . \
+        ${srr}/${srr}.sra
+
+    # Compress immediately to save space
+    gzip "${srr}_1.fastq" "${srr}_2.fastq"
+    echo "  Done: ${srr}_1.fastq.gz  ${srr}_2.fastq.gz"
+done &lt; "$ACC_LIST"
+
+echo "[$(date)] All downloads complete."
+ls -lh *.fastq.gz
+EOF</code></pre>
+
+                <h4 style="margin-top:1.2rem;">Submit and monitor the job</h4>
+                <pre><code># Submit to SLURM
+sbatch /ibex/user/$USER/workshop/raw_data/download_sra.sh
+
+# Check job status (replace JOBID with the number printed by sbatch)
+squeue -u $USER
+
+# Watch live stdout while job runs
+tail -f /ibex/user/$USER/workshop/raw_data/logs/sra_download_JOBID.out
+
+# Cancel a job if needed
+scancel JOBID</code></pre>
+
+                <div class="info-box note">
+                    <strong>After the job finishes</strong>
+                    <p>Check the <code>.err</code> log for any errors, then verify all expected FASTQ pairs are present: <code>ls -lh *.fastq.gz | wc -l</code> should equal <em>2 × number of samples</em>. If a sample failed, re-run <code>fasterq-dump</code> for just that SRR ID rather than re-running the whole job.</p>
+                </div>
+            </div>
+
         </section>
 
         <section>
