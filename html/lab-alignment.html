@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 4: Read Alignment with STAR — RNA-seq Comprehensive Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo">The Bioinformatics Platform - KAUST</a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <h1>Lab 4: Read Alignment with STAR</h1>
+        <p>In this lab, you will align the <strong>trimmed, subsampled</strong> paired-end reads from GSE136366 (a TDP-43 RNA-seq study in human cells) to the GRCh38 reference genome using STAR. Each sample has been subsampled to <strong>1 million read pairs</strong> in Lab 2 to keep runtimes manageable during the workshop. You will then post-process and index the resulting BAM files, assess alignment quality, and visualize the alignments in IGV.</p>
+
+        <div class="info-box tip">
+            <strong>Using subsampled data in this lab</strong>
+            <p>The input files (<code>trimmed/${SRR}_trimmed_1.fastq.gz</code>) were produced in Lab 3 by running <strong>fastp</strong> on the subsampled FASTQ files (<code>raw_data/${SRR}_sub_1/2.fastq.gz</code>, 1 M read pairs each) generated in Lab 2. With 1 M reads, STAR alignment completes in <strong>2–5 minutes per sample</strong> rather than the 30–60 minutes needed for a full dataset. All commands are identical to a full-scale analysis — only the data size differs.
+            </p>
+        </div>
+
+        <div class="info-box note">
+            <strong>Learning Objectives</strong>
+            <ul>
+                <li>Build a STAR genome index from the GRCh38 FASTA and GTF annotation</li>
+                <li>Align paired-end reads to GRCh38 using STAR with appropriate parameters</li>
+                <li>Post-process BAM files: sort, index, and mark PCR duplicates with Picard</li>
+                <li>Assess alignment quality using <code>samtools flagstat</code> and the STAR alignment log</li>
+                <li>Visualize aligned reads at a gene locus using IGV</li>
+            </ul>
+        </div>
+
+        <!-- ======================== -->
+        <!-- Part 1: Setup            -->
+        <!-- ======================== -->
+        <section id="part1">
+            <h2>Part 1: Setup</h2>
+            <p>Connect to Ibex, start an interactive session with enough resources for alignment, and load the required tools.</p>
+
+            <div class="step" data-step="1">
+                <h3>Connect to Ibex and start an interactive session</h3>
+                <pre><code># Connect to Ibex
+ssh username@ilogin.ibex.kaust.edu.sa
+
+# Start an interactive session with 8 CPUs and 32 GB RAM
+# (STAR needs ~30 GB to load the GRCh38 index; never run analyses on the login node)
+srun --cpus-per-task=8 --mem=32G --time=02:00:00 --pty /bin/bash</code></pre>
+                <div class="info-box note">
+                    <strong>Why 32 GB RAM?</strong>
+                    <p>STAR loads the entire genome index into memory during alignment. The human GRCh38 index requires approximately 28&ndash;32 GB of RAM regardless of how many reads you are aligning — even with subsampled data. The read processing itself is fast (a few minutes for 1 M read pairs). If your interactive session request times out in the queue, submit alignment as a batch job (covered in Part 3).</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Load required modules</h3>
+                <pre><code># Load alignment and BAM processing tools
+module load star
+module load samtools
+module load picard
+
+# Verify that all tools are loaded
+module list
+
+# Check versions
+STAR --version
+samtools --version | head -1
+picard MarkDuplicates --version 2>&1 | head -1</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Navigate to your workshop directory and create the output folder</h3>
+                <pre><code># Navigate to your workshop directory on scratch
+cd /ibex/user/$USER/workshop
+
+# Create the directory for alignment outputs
+mkdir -p aligned logs
+
+# Confirm your directory structure
+ls -la</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Expected Directory Structure</strong>
+                    <p>By this point your workshop directory should contain:</p>
+                    <pre><code>/ibex/user/$USER/workshop/
+├── raw_data/          # subsampled FASTQs (*_sub_1/2.fastq.gz) and SRR_Acc_List.txt
+├── trimmed/           # trimmed subsampled FASTQs (*_trimmed_1/2.fastq.gz) from Lab 3
+├── references/        # GRCh38_genome.fa and GRCh38_genes.gtf
+├── aligned/           # will be created now
+└── logs/              # SLURM log files</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================ -->
+        <!-- Part 2: Build STAR Genome Index  -->
+        <!-- ================================ -->
+        <section id="part2">
+            <h2>Part 2: Build the STAR Genome Index</h2>
+            <p>STAR requires a pre-built genome index that combines the reference FASTA and the gene annotation (GTF). This index is built once and reused for all samples. Building the human GRCh38 index takes approximately <strong>1 hour</strong> and requires <strong>~30 GB RAM</strong>, so it must be submitted as a SLURM batch job.</p>
+
+            <div class="info-box tip">
+                <strong>Tip: Check for a Pre-built Index First</strong>
+                <p>We maintains a shared reference area. Before building your own index, check whether a STAR index for GRCh38 already exists:</p>
+                <pre><code>ls /biocorelab/BIX/resources/genomes/Ensembl-release-113/GRCh38.p14/index/star/</code></pre>
+                <p>If the directory exists and contains files like <code>Genome</code>, <code>SA</code>, and <code>SAindex</code>, you can use it directly in Part 3 by setting <code>--genomeDir /biocorelab/BIX/resources/genomes/Ensembl-release-113/GRCh38.p14/index/star/</code> and skip the index-building step entirely.</p>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Create the SLURM batch script for index generation</h3>
+                <p>Save the following script as <code>star_index.sh</code> in your workshop directory:</p>
+                <pre><code>cat > /ibex/user/$USER/workshop/star_index.sh &lt;&lt; 'EOF'
+#!/bin/bash
+#SBATCH --job-name=star_index
+#SBATCH --cpus-per-task=8
+#SBATCH --mem=64G
+#SBATCH --time=02:00:00
+#SBATCH --output=logs/star_index_%j.log
+
+module load star
+
+mkdir -p references/star_index
+
+STAR --runMode genomeGenerate \
+    --genomeDir references/star_index \
+    --genomeFastaFiles references/GRCh38_genome.fa \
+    --sjdbGTFfile references/GRCh38_genes.gtf \
+    --runThreadN 8 \
+    --genomeSAindexNbases 14
+EOF</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Submit the index job and monitor progress</h3>
+                <pre><code># Make sure you are in your workshop directory
+cd /ibex/user/$USER/workshop
+
+# Submit the batch job
+sbatch star_index.sh
+
+# Check that the job is running
+squeue -u $USER
+
+# Watch the log file as it progresses
+tail -f logs/star_index_*.log</code></pre>
+                <div class="info-box note">
+                    <strong>Key STAR Index Parameters</strong>
+                    <table class="schedule-table">
+                        <tr><th>Parameter</th><th>Value</th><th>Meaning</th></tr>
+                        <tr><td><code>--runMode genomeGenerate</code></td><td></td><td>Tells STAR to build an index rather than align reads</td></tr>
+                        <tr><td><code>--genomeDir</code></td><td><code>references/star_index</code></td><td>Output directory for the index files</td></tr>
+                        <tr><td><code>--genomeFastaFiles</code></td><td><code>GRCh38_genome.fa</code></td><td>Reference genome FASTA (can be multi-chromosome)</td></tr>
+                        <tr><td><code>--sjdbGTFfile</code></td><td><code>GRCh38_genes.gtf</code></td><td>Gene annotation used to add known splice junctions to the index</td></tr>
+                        <tr><td><code>--genomeSAindexNbases</code></td><td><code>14</code></td><td>Suffix array index bases; 14 is appropriate for large genomes like human</td></tr>
+                        <tr><td><code>--runThreadN</code></td><td><code>8</code></td><td>Number of CPU threads to use</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Verify the index was built successfully</h3>
+                <pre><code># Once the job finishes (check with squeue -u $USER), verify the output
+ls -lh references/star_index/
+
+# You should see files including: Genome, SA, SAindex, chrName.txt, genomeParameters.txt, etc.
+# Check the genome parameters
+cat references/star_index/genomeParameters.txt</code></pre>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- Part 3: Align Reads with STAR  -->
+        <!-- ============================== -->
+        <section id="part3">
+            <h2>Part 3: Align Reads with STAR</h2>
+            <p>With the genome index ready, you can now align all samples interactively. With subsampled data (1 M read pairs each), STAR finishes each sample in about <strong>2–5 minutes</strong>, so a simple loop in your interactive session works well.</p>
+
+            <div class="step" data-step="1">
+                <h3>Run STAR alignment for all samples</h3>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+for srr in $(cat raw_data/SRR_Acc_List.txt); do
+    echo "=== Aligning $srr ==="
+    mkdir -p aligned/${srr}
+
+    STAR --runThreadN 8 \
+        --genomeDir references/star_index \
+        --readFilesIn trimmed/${srr}_trimmed_1.fastq.gz trimmed/${srr}_trimmed_2.fastq.gz \
+        --readFilesCommand zcat \
+        --outSAMtype BAM SortedByCoordinate \
+        --outSAMattributes NH HI AS NM MD \
+        --outFileNamePrefix aligned/${srr}/ \
+        --outSAMstrandField intronMotif \
+        --alignSJoverhangMin 8 \
+        --alignSJDBoverhangMin 1 \
+        --quantMode GeneCounts \
+        --runMode alignReads
+
+    echo "Done: $srr"
+done</code></pre>
+                <div class="info-box note">
+                    <strong>Expected runtime</strong>
+                    <p>Each subsampled sample (1 M read pairs) takes roughly 2–5 minutes. The loop will process all samples sequentially. STAR prints progress to the terminal; a line like <code>... done mapping</code> and the appearance of the <code>Aligned.sortedByCoord.out.bam</code> file confirm success for each sample.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Understand the key STAR alignment parameters</h3>
+                <div class="info-box note">
+                    <strong>STAR Parameter Reference</strong>
+                    <table class="schedule-table">
+                        <tr><th>Parameter</th><th>Value Used</th><th>Explanation</th></tr>
+                        <tr><td><code>--readFilesCommand zcat</code></td><td><code>zcat</code></td><td>Tells STAR to decompress gzipped FASTQ files on the fly</td></tr>
+                        <tr><td><code>--outSAMtype BAM SortedByCoordinate</code></td><td></td><td>Output a coordinate-sorted BAM file directly (no need for a separate sort step)</td></tr>
+                        <tr><td><code>--outSAMattributes NH HI AS NM MD</code></td><td></td><td>Tags added to each read: NH=number of hits, HI=hit index, AS=alignment score, NM=mismatches, MD=mismatch positions</td></tr>
+                        <tr><td><code>--outSAMstrandField intronMotif</code></td><td></td><td>Adds strand information based on intron splice-site motifs; required for unstranded libraries</td></tr>
+                        <tr><td><code>--alignSJoverhangMin</code></td><td><code>8</code></td><td>Minimum overhang on each side of a novel splice junction</td></tr>
+                        <tr><td><code>--alignSJDBoverhangMin</code></td><td><code>1</code></td><td>Minimum overhang for annotated (database) splice junctions</td></tr>
+                        <tr><td><code>--quantMode GeneCounts</code></td><td></td><td>Outputs a per-gene read count table alongside the BAM (useful for downstream DEG analysis)</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Check expected output files for each sample</h3>
+                <pre><code># Once a sample finishes, check its output directory
+ls -lh aligned/$(head -1 raw_data/SRR_Acc_List.txt)/</code></pre>
+                <div class="info-box note">
+                    <strong>STAR Output Files</strong>
+                    <table class="schedule-table">
+                        <tr><th>File</th><th>Description</th></tr>
+                        <tr><td><code>Aligned.sortedByCoord.out.bam</code></td><td>Coordinate-sorted BAM file with aligned reads</td></tr>
+                        <tr><td><code>Log.final.out</code></td><td>Summary alignment statistics (mapping rate, multi-mappers, etc.)</td></tr>
+                        <tr><td><code>Log.out</code></td><td>Detailed STAR run log</td></tr>
+                        <tr><td><code>Log.progress.out</code></td><td>Real-time progress during alignment</td></tr>
+                        <tr><td><code>ReadsPerGene.out.tab</code></td><td>Per-gene read count table (from <code>--quantMode GeneCounts</code>)</td></tr>
+                        <tr><td><code>SJ.out.tab</code></td><td>Splice junctions detected in this sample</td></tr>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================= -->
+        <!-- Part 4: BAM Post-processing        -->
+        <!-- ================================= -->
+        <section id="part4">
+            <h2>Part 4: BAM Post-processing</h2>
+            <p>After alignment, BAM files need to be indexed for fast random access, and PCR duplicates should be flagged using Picard MarkDuplicates. These steps operate on the subsampled BAMs produced in Part 3 — the commands are identical to a full-scale workflow.</p>
+
+            <div class="step" data-step="1">
+                <h3>Index the BAM files with samtools</h3>
+                <p>A BAM index (<code>.bai</code> file) allows tools like IGV and samtools to jump directly to any genomic region without reading the entire file.</p>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+# Index the BAM file for every sample
+for srr in $(cat raw_data/SRR_Acc_List.txt); do
+    echo "Indexing $srr ..."
+    samtools index aligned/${srr}/Aligned.sortedByCoord.out.bam
+done
+
+# Verify — each BAM should now have a matching .bai file
+ls -lh aligned/$(head -1 raw_data/SRR_Acc_List.txt)/</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Mark PCR duplicates with Picard</h3>
+                <pre><code>for srr in $(cat raw_data/SRR_Acc_List.txt); do
+    echo "Marking duplicates for $srr ..."
+    picard MarkDuplicates \
+        I=aligned/${srr}/Aligned.sortedByCoord.out.bam \
+        O=aligned/${srr}/marked_dup.bam \
+        M=aligned/${srr}/dup_metrics.txt
+    samtools index aligned/${srr}/marked_dup.bam
+done</code></pre>
+                <div class="info-box note">
+                    <strong>What is Duplicate Marking and Why Does It Matter?</strong>
+                    <p>During library preparation, PCR amplification can create multiple identical copies of the same original DNA molecule. These duplicates are <em>not</em> independent observations of gene expression — they are technical artifacts. Picard <code>MarkDuplicates</code> identifies read pairs that align to exactly the same position and flags them in the BAM file (it does <em>not</em> delete them by default). Downstream tools like GATK and many DEG pipelines can then ignore flagged duplicates.</p>
+                    <p>Key output: <code>dup_metrics.txt</code> reports the duplication rate. For RNA-seq libraries, rates of 10&ndash;40% are common. Very high rates (&gt;60%) may indicate poor library complexity. With subsampled data the <strong>ESTIMATED_LIBRARY_SIZE</strong> will appear smaller than a full-dataset run — this is expected.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Inspect the Picard duplication metrics</h3>
+                <pre><code># View the duplication report for one sample
+SRR=$(head -1 raw_data/SRR_Acc_List.txt)
+cat aligned/${SRR}/dup_metrics.txt</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Reading Picard MarkDuplicates Output</strong>
+                    <p>The key metric to check is <strong>PERCENT_DUPLICATION</strong> in the metrics file. Also note <strong>ESTIMATED_LIBRARY_SIZE</strong> — a low value suggests the library was sequenced to near-saturation. With subsampled data this estimate will be lower than in a full run; the duplication rate itself remains a meaningful quality indicator.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- Part 5: Alignment QC           -->
+        <!-- ============================== -->
+        <section id="part5">
+            <h2>Part 5: Alignment Quality Control</h2>
+            <p>Before proceeding to quantification, assess the quality of the alignments to make sure the data is suitable for downstream analysis. These steps work directly on the subsampled BAMs — with only 1 M read pairs per sample, <code>flagstat</code> and log inspection complete in seconds.</p>
+
+            <div class="step" data-step="1">
+                <h3>Run samtools flagstat on all samples</h3>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+# Print flagstat output for every sample
+for srr in $(cat raw_data/SRR_Acc_List.txt); do
+    echo "=== $srr ==="
+    samtools flagstat aligned/${srr}/Aligned.sortedByCoord.out.bam
+    echo ""
+done</code></pre>
+                <div class="info-box note">
+                    <strong>Key flagstat Fields to Check</strong>
+                    <table class="schedule-table">
+                        <tr><th>Field</th><th>What to Look For</th></tr>
+                        <tr><td>total</td><td>Total reads in the BAM; with subsampled data expect ~2 M (1 M read pairs × 2 reads each)</td></tr>
+                        <tr><td>mapped</td><td>Number and % of reads that aligned; aim for &gt;80%</td></tr>
+                        <tr><td>properly paired</td><td>Both reads in a pair aligned concordantly; should be high (&gt;90% of mapped)</td></tr>
+                        <tr><td>singletons</td><td>Reads whose mate did not map; a few percent is normal, high values may indicate quality issues</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Inspect the STAR alignment summary log</h3>
+                <pre><code># View the STAR summary log for the first sample
+cat aligned/$(head -1 raw_data/SRR_Acc_List.txt)/Log.final.out
+
+# Loop to print key stats for all samples
+for srr in $(cat raw_data/SRR_Acc_List.txt); do
+    echo "=== $srr ==="
+    grep -E "Uniquely mapped|mapped to multiple|unmapped" aligned/${srr}/Log.final.out
+    echo ""
+done</code></pre>
+                <div class="info-box note">
+                    <strong>STAR Log.final.out Field Reference</strong>
+                    <table class="schedule-table">
+                        <tr><th>Field</th><th>Explanation</th></tr>
+                        <tr><td>Number of input reads</td><td>Total read pairs submitted to STAR</td></tr>
+                        <tr><td>Uniquely mapped reads number / %</td><td>Reads with exactly one best alignment location — the gold standard metric</td></tr>
+                        <tr><td>% of reads mapped to multiple loci</td><td>Multi-mapping reads; typically 5&ndash;15% for RNA-seq</td></tr>
+                        <tr><td>% of reads unmapped: too short</td><td>Reads too short after soft-clipping to align; may indicate adapter contamination or aggressive trimming</td></tr>
+                        <tr><td>% of reads unmapped: too many mismatches</td><td>Reads with too many mismatches; may indicate wrong reference genome or RNA editing</td></tr>
+                        <tr><td>% of reads unmapped: other</td><td>Miscellaneous unmapped reads</td></tr>
+                        <tr><td>Number of splices: Total</td><td>Total number of splice junctions observed</td></tr>
+                        <tr><td>Number of splices: Annotated sjdb</td><td>Splices matching known junctions from the GTF</td></tr>
+                        <tr><td>Insertion / Deletion average length</td><td>Average indel size; should be small for short-read RNA-seq</td></tr>
+                        <tr><td>Mismatch rate per base, %</td><td>Base error rate; typically &lt;1% for good Illumina data</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="info-box warning">
+                <strong>Warning: What to Do If the Mapping Rate is Low</strong>
+                <p>If uniquely mapped reads fall below 70%, investigate the following:</p>
+                <ul>
+                    <li><strong>Wrong reference genome:</strong> Confirm you are using the correct species and genome build (GRCh38 for human).</li>
+                    <li><strong>Adapter contamination:</strong> Check FastQC reports from Lab 3. Run fastp again with more aggressive adapter trimming if needed.</li>
+                    <li><strong>rRNA contamination:</strong> A large fraction of unmapped reads may be ribosomal RNA not depleted during library preparation.</li>
+                    <li><strong>Incorrect library type:</strong> Check whether reads are stranded or unstranded; adjust <code>--outSAMstrandField</code> accordingly.</li>
+                    <li><strong>Short reads after trimming:</strong> If many reads are flagged as "too short", relax the minimum length threshold in fastp.</li>
+                </ul>
+            </div>
+
+            <div class="info-box note">
+                <strong>Unique vs. Multi-mapping Reads</strong>
+                <p><strong>Uniquely mapped reads</strong> align to exactly one location in the genome. They are the most reliable for quantification because their genomic origin is unambiguous.</p>
+                <p><strong>Multi-mapping reads</strong> align equally well to two or more locations (e.g., reads from gene families or repeated elements). Different tools handle them differently: some discard them, some distribute them probabilistically. STAR outputs them in the BAM with an NH tag &gt; 1. For standard differential expression analysis with tools like DESeq2, it is common to use only uniquely mapped reads.</p>
+            </div>
+        </section>
+
+        <!-- ================================ -->
+        <!-- Part 6: Visualize in IGV         -->
+        <!-- ================================ -->
+        <section id="part6">
+            <h2>Part 6: Visualize Alignments in IGV</h2>
+            <p>The Integrative Genomics Viewer (IGV) lets you visually inspect read alignments at any genomic locus — essential for sanity-checking results and exploring specific genes of interest. Because these are subsampled BAMs (~1 M reads), coverage will be lower than a full dataset but gene structure, splice junctions, and strand orientation are still clearly visible.</p>
+
+            <div class="step" data-step="1">
+                <h3>Option A: Use IGV on Ibex Open OnDemand (recommended)</h3>
+                <p>The easiest approach is to use the IGV application available through the Ibex Open OnDemand web portal, which avoids transferring large BAM files:</p>
+                <ol>
+                    <li>Open your browser and navigate to the Ibex Open OnDemand portal</li>
+                    <li>Log in with your Ibex credentials</li>
+                    <li>Use the file browser to navigate to <code>/ibex/user/$USER/workshop/aligned/</code></li>
+                    <li>Launch IGV from the Interactive Apps menu</li>
+                </ol>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Option B: Copy BAM files to your local machine</h3>
+                <p>If you prefer to run IGV locally, download the BAM and its index:</p>
+                <pre><code># Run these commands from your LOCAL terminal (not Ibex)
+# Replace "username" and "SRRxxxxxxxx" with real values
+
+scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/aligned/SRRxxxxxxxx/Aligned.sortedByCoord.out.bam ./
+scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/aligned/SRRxxxxxxxx/Aligned.sortedByCoord.out.bam.bai ./</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Subsampled BAMs are small and fast to transfer</strong>
+                    <p>A subsampled BAM (1 M read pairs) is typically only 50–150 MB, so <code>scp</code> to your laptop takes well under a minute. A full-dataset BAM can be 5–20 GB, where Option A (Open OnDemand) is strongly preferred.</p>
+                </div>
+                <p>Download IGV from <a href="https://igv.org/doc/desktop/" target="_blank">https://igv.org/doc/desktop/</a> if not already installed.</p>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Load the genome and BAM file in IGV</h3>
+                <ol>
+                    <li>In IGV, select <strong>Genomes &rarr; Load Genome from Server</strong> and choose <strong>Human (GRCh38/hg38)</strong></li>
+                    <li>Select <strong>File &rarr; Load from File</strong> and open the BAM file (<code>Aligned.sortedByCoord.out.bam</code>)</li>
+                    <li>In the search box at the top, type <code>GAPDH</code> and press Enter to navigate to that gene</li>
+                </ol>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Navigate to the TARDBP gene locus</h3>
+                <p>Since this dataset is a TDP-43 (TARDBP) study, navigate to the gene of interest:</p>
+                <pre><code># Type this gene name in the IGV search box to navigate:
+TARDBP
+
+# You can also navigate by coordinates:
+# chr1:11,012,655-11,045,430  (GRCh38)</code></pre>
+                <div class="info-box note">
+                    <strong>What to Look for in IGV</strong>
+                    <ul>
+                        <li><strong>Coverage track:</strong> The histogram at the top of the alignment track shows read depth per position. Exons should show peaks of coverage; introns should be nearly empty. With subsampled data, depth will be low (~5–30× for expressed genes) but the exon/intron contrast is still visible.</li>
+                        <li><strong>Splice junctions:</strong> Curved arcs connecting exons indicate reads that span splice junctions. You should see arcs connecting TARDBP exons.</li>
+                        <li><strong>Strand orientation:</strong> Read colors indicate which strand a read aligns to. For a stranded library, reads on each gene should be predominantly one color.</li>
+                        <li><strong>Mismatches:</strong> Colored bars within reads indicate mismatches to the reference. A few scattered mismatches are normal; clustering may indicate a variant or sequencing error.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="info-box tip">
+                <strong>Tip: Useful IGV Keyboard Shortcuts</strong>
+                <ul>
+                    <li><code>+</code> / <code>-</code> — zoom in and out</li>
+                    <li><code>Ctrl+F</code> — jump forward along the chromosome</li>
+                    <li>Right-click on a read — see full alignment details, flags, and tags</li>
+                    <li>Right-click on the track — change color scheme, squish/expand reads, sort by various criteria</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ============ -->
+        <!-- Exercises    -->
+        <!-- ============ -->
+        <section id="exercises">
+            <h2>Exercises</h2>
+            <p>Use the commands and output files from this lab to answer the following questions.</p>
+
+            <div class="card">
+                <h3>Exercise 1: Unique Mapping Rate</h3>
+                <p>What percentage of reads mapped uniquely for each sample? Read the STAR <code>Log.final.out</code> files for all samples and compare the results.</p>
+                <p><em>Hint: Use the loop from Part 5, Step 2 to grep the "Uniquely mapped reads %" field from each sample's log. Are there any samples with notably lower mapping rates?</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 2: Duplication Rate</h3>
+                <p>What is the PCR duplication rate reported by Picard MarkDuplicates for each sample? Look at the <code>dup_metrics.txt</code> files.</p>
+                <p><em>Hint: The key column is <code>PERCENT_DUPLICATION</code>. You can extract it with:</em></p>
+                <pre><code>for srr in $(cat raw_data/SRR_Acc_List.txt); do
+    echo -n "$srr: "
+    grep -A2 "ESTIMATED_LIBRARY_SIZE" aligned/${srr}/dup_metrics.txt | tail -1 | cut -f9
+done</code></pre>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 3: Properly Paired Reads</h3>
+                <p>For one sample, how many reads are <em>properly paired</em> versus how many are <em>singletons</em> (mate unmapped)? Use <code>samtools flagstat</code> and calculate the percentage of each.</p>
+                <p><em>Hint: Run <code>samtools flagstat aligned/SRRxxxxxxxx/Aligned.sortedByCoord.out.bam</code> and look at the "properly paired" and "singletons" lines. Divide each by the total read count to get percentages.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 4: TARDBP Coverage in IGV</h3>
+                <p>Navigate to the <strong>TARDBP</strong> gene locus in IGV (chromosome 1). Describe what you observe: How many exons are covered? Do you see evidence of alternative splicing (multiple arc patterns)? Is coverage uniform across exons?</p>
+                <p><em>Hint: TARDBP encodes TDP-43, the key protein in this study (GSE136366). Compare a control sample versus a TDP-43 knockdown sample if available. Look for differences in exon coverage and splice-junction arcs.</em></p>
+            </div>
+        </section>
+
+        <!-- ========= -->
+        <!-- Summary   -->
+        <!-- ========= -->
+        <section id="summary">
+            <h2>Summary</h2>
+            <p>In this lab, you have:</p>
+            <ul>
+                <li>Built a STAR genome index for GRCh38 using a SLURM batch job</li>
+                <li>Aligned all GSE136366 paired-end FASTQ samples to GRCh38 using a SLURM array job</li>
+                <li>Indexed BAM files with <code>samtools index</code> for fast random access</li>
+                <li>Marked PCR duplicates with <code>picard MarkDuplicates</code> and inspected duplication rates</li>
+                <li>Assessed alignment quality using <code>samtools flagstat</code> and the STAR <code>Log.final.out</code> summary</li>
+                <li>Visualized aligned reads at the TARDBP gene locus in IGV</li>
+            </ul>
+            <p>
+                <strong>Previous:</strong> <a href="lab-public-data.html">Lab 2: Public Data Retrieval</a>
+                &nbsp;&mdash;&nbsp;
+                <strong>Next:</strong> <a href="lab-quantification.html">Lab 5: Gene Quantification with Salmon</a>
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        // Add copy buttons to all code blocks
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('pre');
+            codeBlocks.forEach(function(pre) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(pre);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', function() {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.textContent : pre.textContent;
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = 'Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>

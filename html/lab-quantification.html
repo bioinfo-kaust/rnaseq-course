@@ -1,0 +1,525 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 5: Quantification with Salmon &amp; Exploratory Analysis &mdash; RNA-seq Comprehensive Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo">The Bioinformatics Platform - KAUST</a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <h1>Lab 5: Quantification with Salmon &amp; Exploratory Analysis</h1>
+        <p>In this lab you will quantify gene expression for all GSE136366 samples using <strong>Salmon</strong> quasi-mapping, then import the results into R, apply variance-stabilising transformation (VST), and produce a PCA plot and sample-distance heatmap to assess sample quality.</p>
+
+        <div class="info-box tip">
+            <strong>Using subsampled data in this lab</strong>
+            <p>The input files (<code>trimmed/${SRR}_trimmed_1/2.fastq.gz</code>) are the trimmed, <strong>subsampled</strong> reads produced in Labs 2 and 3 — each sample contains <strong>1 million read pairs</strong>. Salmon finishes quantifying a single subsampled sample in <strong>under 1 minute</strong>. All commands are identical to a full-scale analysis; only the data size differs. Expect lower per-gene counts than a full dataset, which is expected and appropriate for a workshop exercise.
+            </p>
+        </div>
+
+        <div class="info-box note">
+            <strong>Learning Objectives</strong>
+            <ul>
+                <li>Build a Salmon transcriptome index from the Ensembl cDNA FASTA</li>
+                <li>Run Salmon quasi-mapping quantification on all GSE136366 paired-end samples</li>
+                <li>Import Salmon output into R using <code>tximport</code> (transcript &rarr; gene summarisation)</li>
+                <li>Apply variance-stabilising transformation (VST) with DESeq2</li>
+                <li>Produce a PCA plot and sample-distance heatmap to evaluate sample quality and clustering</li>
+            </ul>
+        </div>
+
+        <!-- =============================== -->
+        <!-- Part 1: Setup                   -->
+        <!-- =============================== -->
+        <section id="part1">
+            <h2>Part 1: Setup on Ibex</h2>
+            <p>Connect to Ibex, start an interactive session, and load the tools needed for this lab.</p>
+
+            <div class="step" data-step="1">
+                <h3>Connect and start an interactive session</h3>
+                <pre><code># Connect to Ibex
+ssh username@ilogin.ibex.kaust.edu.sa
+
+# Start an interactive session (never run analyses on login nodes!)
+# Subsampled data (1M reads): 8G RAM and 1 hour is plenty for Salmon
+srun --pty --time=01:00:00 --mem=8G --cpus-per-task=8 bash</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Load required modules</h3>
+                <pre><code># Load Salmon for quantification
+module load salmon
+
+# Load R for downstream analysis
+module load R
+
+# Verify loaded modules
+module list
+
+# Confirm tool versions
+salmon --version
+R --version | head -1</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Check Available Module Versions</strong>
+                    <p>If <code>module load salmon</code> does not find a match, search for the exact module name first:</p>
+                    <pre><code>module avail salmon</code></pre>
+                    <p>Use the full versioned name shown in the output (e.g., <code>module load salmon/1.10.1</code>).</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Navigate to your workshop directory and create output folders</h3>
+                <pre><code># Go to your workshop scratch space
+cd /ibex/user/$USER/workshop
+
+# Create the output directory for Salmon counts
+mkdir -p counts/salmon
+
+# Create a results directory for plots
+mkdir -p results
+
+# Verify workspace structure
+ls -la</code></pre>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Part 2: Build Salmon Transcriptome Index      -->
+        <!-- ============================================= -->
+        <section id="part2">
+            <h2>Part 2: Build a Salmon Transcriptome Index</h2>
+            <p>Salmon performs quasi-mapping against a <em>transcriptome</em> FASTA (not the genome). This makes it much faster than alignment-based methods such as STAR, while still producing accurate quantification estimates.</p>
+
+            <div class="info-box note">
+                <strong>Why a Transcriptome FASTA?</strong>
+                <p>Salmon does not align reads to the genome. Instead it uses a k-mer index built from all annotated transcript sequences. Reads are matched against this index in memory, allowing Salmon to process a typical RNA-seq sample in a few minutes rather than hours. Because it works at transcript level, Salmon natively handles multi-mapping reads and produces both transcript-level and gene-level estimates.</p>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Download the Ensembl human transcriptome (cDNA)</h3>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+# Download Ensembl release 110 cDNA sequences for Homo sapiens
+wget https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/cdna/Homo_sapiens.GRCh38.cdna.all.fa.gz
+
+# Move to the references directory with a cleaner name
+mv Homo_sapiens.GRCh38.cdna.all.fa.gz references/GRCh38_transcriptome.fa.gz
+
+# Verify the file is present
+ls -lh references/</code></pre>
+                <div class="info-box note">
+                    <strong>Ensembl cDNA vs genome FASTA</strong>
+                    <p>The cDNA file contains spliced transcript sequences (one entry per annotated transcript isoform). It is much smaller than the full genome (~200 MB vs ~3 GB) and is exactly what Salmon needs to build its index.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Build the Salmon index</h3>
+                <pre><code>salmon index \
+    -t references/GRCh38_transcriptome.fa.gz \
+    -i references/salmon_index \
+    --threads 8</code></pre>
+                <p>This takes roughly <strong>5–10 minutes</strong> and only needs to be done once. The resulting <code>references/salmon_index/</code> directory can be reused for all samples and future datasets mapped to the same annotation release.</p>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Part 3: Quantify with Salmon                 -->
+        <!-- ============================================= -->
+        <section id="part3">
+            <h2>Part 3: Quantify with Salmon</h2>
+            <p>Now that the index is ready, run Salmon on each trimmed sample. We will loop over all sample IDs listed in <code>raw_data/SRR_Acc_List.txt</code>.</p>
+
+            <div class="info-box note">
+                <strong>Key Salmon Parameters</strong>
+                <table class="schedule-table">
+                    <tr><th>Parameter</th><th>Meaning</th></tr>
+                    <tr><td><code>-i</code></td><td>Path to the Salmon index directory</td></tr>
+                    <tr><td><code>-l A</code></td><td>Auto-detect library/strand type (recommended for most datasets)</td></tr>
+                    <tr><td><code>-1</code> / <code>-2</code></td><td>R1 and R2 FASTQ files (paired-end)</td></tr>
+                    <tr><td><code>--validateMappings</code></td><td>More accurate mapping using alignment-based validation; recommended</td></tr>
+                    <tr><td><code>--gcBias</code></td><td>Correct for GC-content bias in fragment sequencing</td></tr>
+                    <tr><td><code>--seqBias</code></td><td>Correct for sequence-specific biases at read ends</td></tr>
+                    <tr><td><code>--threads</code></td><td>Number of CPU threads to use</td></tr>
+                    <tr><td><code>-o</code></td><td>Output directory for this sample</td></tr>
+                </table>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Run Salmon quantification for all samples</h3>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+mkdir -p counts/salmon
+
+for srr in $(cat raw_data/SRR_Acc_List.txt); do
+    echo "=== Quantifying $srr ==="
+    salmon quant \
+        -i references/salmon_index \
+        -l A \
+        -1 trimmed/${srr}_trimmed_1.fastq.gz \
+        -2 trimmed/${srr}_trimmed_2.fastq.gz \
+        --validateMappings \
+        --gcBias \
+        --seqBias \
+        --threads 8 \
+        -o counts/salmon/${srr}
+    echo "Done: $srr"
+done</code></pre>
+                <div class="info-box note">
+                    <strong>Expected runtime</strong>
+                    <p>Each subsampled sample (1 M read pairs) takes well under 1 minute. The full loop for all GSE136366 samples should complete in a few minutes within your interactive session.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Inspect Salmon output files</h3>
+                <p>Each sample gets its own output directory containing several files. The most important is <code>quant.sf</code>:</p>
+                <pre><code># View the quant.sf file for the first sample
+head counts/salmon/$(head -1 raw_data/SRR_Acc_List.txt)/quant.sf</code></pre>
+                <div class="info-box note">
+                    <strong>quant.sf Column Descriptions</strong>
+                    <table class="schedule-table">
+                        <tr><th>Column</th><th>Description</th></tr>
+                        <tr><td><code>Name</code></td><td>Transcript identifier (Ensembl ENST...)</td></tr>
+                        <tr><td><code>Length</code></td><td>Transcript length in bases</td></tr>
+                        <tr><td><code>EffectiveLength</code></td><td>Length corrected for fragment size and biases</td></tr>
+                        <tr><td><code>TPM</code></td><td>Transcripts Per Million &mdash; normalised expression estimate</td></tr>
+                        <tr><td><code>NumReads</code></td><td>Estimated number of reads originating from this transcript</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Check detected library strandedness</h3>
+                <p>Salmon automatically detects the library type. Review what it found for your data:</p>
+                <pre><code># View the library format counts JSON for the first sample
+cat counts/salmon/$(head -1 raw_data/SRR_Acc_List.txt)/lib_format_counts.json</code></pre>
+                <div class="info-box note">
+                    <strong>What Does the Strandedness Detection Tell You?</strong>
+                    <p>The <code>lib_format_counts.json</code> file reports how many reads matched each possible library orientation. A high count for <code>SF</code> or <code>SR</code> indicates a stranded library; roughly equal counts for <code>IU</code> (inward, unstranded) indicate an unstranded library. For GSE136366, expect an unstranded paired-end library (<code>IU</code>).</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Verify all samples completed successfully</h3>
+                <pre><code># Confirm each sample has a quant.sf file
+for srr in $(cat raw_data/SRR_Acc_List.txt); do
+    f="counts/salmon/${srr}/quant.sf"
+    if [ -f "$f" ]; then
+        echo "OK: $srr  ($(wc -l &lt; $f) transcripts)"
+    else
+        echo "MISSING: $srr"
+    fi
+done</code></pre>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Part 4: Exploratory Analysis in R            -->
+        <!-- ============================================= -->
+        <section id="part4">
+            <h2>Part 4: Exploratory Analysis in R</h2>
+            <p>With quantification complete, we import the Salmon results into R, summarise them at the gene level, apply a variance-stabilising transformation, and visualise sample relationships.</p>
+
+            <div class="step" data-step="1">
+                <h3>Start an R session on Ibex</h3>
+                <pre><code># Option A: Interactive R in terminal (module already loaded)
+R
+
+# Option B: Use RStudio via Ibex Open OnDemand (OOD)
+# Open a browser and navigate to:  https://ood.ibex.kaust.edu.sa
+# Select "RStudio Server" from the Interactive Apps menu</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Set Your Working Directory First</strong>
+                    <p>In your R session, set the working directory to the workshop folder so all file paths are relative:</p>
+                    <pre><code>setwd("/ibex/user/YOUR_USERNAME/workshop")
+# Replace YOUR_USERNAME with your actual Ibex username</code></pre>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Load required R packages</h3>
+                <pre><code># Load required packages
+library(tximport)
+library(DESeq2)
+library(ggplot2)
+library(pheatmap)
+library(GenomicFeatures)
+
+# If any package is not installed, install it first:
+# BiocManager::install(c("tximport", "DESeq2", "GenomicFeatures"))
+# install.packages(c("ggplot2", "pheatmap"))
+
+# Check versions
+packageVersion("tximport")
+packageVersion("DESeq2")</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Create a transcript-to-gene mapping from the GTF</h3>
+                <p>Salmon quantifies at the <em>transcript</em> level. We need a mapping table to aggregate transcript counts to gene-level counts. <code>GenomicFeatures</code> can build this directly from the GTF file:</p>
+                <pre><code># Build a TxDb object from the GTF annotation
+txdb &lt;- makeTxDbFromGFF("references/GRCh38_genes.gtf", format = "gtf")
+
+# Extract the transcript-to-gene mapping
+k &lt;- keys(txdb, keytype = "TXNAME")
+tx2gene &lt;- select(txdb, k, "GENEID", "TXNAME")
+
+# Inspect the mapping table
+head(tx2gene)
+dim(tx2gene)  # should have one row per transcript</code></pre>
+                <div class="info-box note">
+                    <strong>tx2gene Format</strong>
+                    <p>The <code>tx2gene</code> data frame must have two columns: the first contains transcript IDs (matching the <code>Name</code> column in <code>quant.sf</code>) and the second contains gene IDs. <code>tximport</code> uses this table to sum transcript-level estimates up to gene level.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Import Salmon counts with tximport</h3>
+                <pre><code># Read the list of SRR accessions
+srr_ids &lt;- readLines("raw_data/SRR_Acc_List.txt")
+srr_ids  # preview
+
+# Build paths to each quant.sf file
+quant_files &lt;- file.path("counts/salmon", srr_ids, "quant.sf")
+names(quant_files) &lt;- srr_ids
+
+# Verify all files exist before importing
+stopifnot(all(file.exists(quant_files)))
+
+# Import — tximport sums transcript counts to gene level
+txi &lt;- tximport(quant_files, type = "salmon", tx2gene = tx2gene)
+
+# Explore the result
+names(txi)          # components: counts, abundance (TPM), length
+dim(txi$counts)     # rows = genes, columns = samples
+head(txi$counts)</code></pre>
+
+                <div class="info-box note">
+                    <strong>TPM vs Raw Counts &mdash; Which to Use?</strong>
+                    <p><strong>TPM (Transcripts Per Million)</strong> normalises for transcript length and sequencing depth. It is useful for comparing expression levels <em>within a sample</em> or ranking genes by abundance. However, TPM values are compositional (they always sum to 1 million per sample), so they are not appropriate for differential expression testing.</p>
+                    <p><strong>Raw counts</strong> (estimated read counts from Salmon) retain the variance structure expected by count-based statistical models such as DESeq2 and edgeR. Always use raw counts for differential expression analysis.</p>
+                    <p><code>tximport</code> imports both: <code>txi$abundance</code> = TPM, <code>txi$counts</code> = estimated counts.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="5">
+                <h3>Create sample metadata (coldata)</h3>
+                <p>Define the experimental conditions for each sample. Adapt the condition labels to the actual GSE136366 design (TDP-43 knockdown vs control):</p>
+                <pre><code># Build a coldata data frame
+# Adjust the condition vector to match the actual sample groups in GSE136366
+coldata &lt;- data.frame(
+    sample    = srr_ids,
+    condition = c(rep("control", 3), rep("knockdown", 3)),  # example — verify against GEO metadata
+    row.names = srr_ids
+)
+
+coldata</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Verify Sample Groups from GEO</strong>
+                    <p>Check the GEO page for GSE136366 (<a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE136366" target="_blank">https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE136366</a>) to confirm which SRR IDs correspond to control vs TDP-43 knockdown samples. The order in <code>coldata</code> must match the order in <code>quant_files</code>.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="6">
+                <h3>Build a DESeq2 object and apply VST</h3>
+                <pre><code># Create DESeqDataSet from tximport output
+dds &lt;- DESeqDataSetFromTximport(txi, colData = coldata, design = ~condition)
+
+# Filter out genes with very low counts (speeds up analysis and improves statistics)
+dds &lt;- dds[rowSums(counts(dds)) &gt;= 10, ]
+cat("Genes retained after filtering:", nrow(dds), "\n")
+
+# Apply variance-stabilising transformation (VST)
+# blind = TRUE: transformation ignores the experimental design — appropriate for QC/exploration
+vsd &lt;- vst(dds, blind = TRUE)
+
+# Inspect the transformed data
+assay(vsd)[1:5, 1:3]</code></pre>
+
+                <div class="info-box note">
+                    <strong>Why VST Before PCA?</strong>
+                    <p>Raw RNA-seq count data have a mean-variance relationship: highly expressed genes have much larger variance than lowly expressed ones. If you run PCA directly on raw counts, the first principal components will be dominated by a handful of highly expressed genes rather than reflecting true sample-level differences.</p>
+                    <p>Variance-stabilising transformation (VST) removes this mean-variance dependence, giving each gene roughly equal weight in the PCA. This makes the resulting plots far more interpretable. An alternative is <code>rlog()</code>, which is more robust for very small sample sizes (&lt; 15 samples) but slower to compute.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="7">
+                <h3>PCA plot</h3>
+                <pre><code># Calculate PCA and retrieve data for ggplot2
+pca_data    &lt;- plotPCA(vsd, intgroup = "condition", returnData = TRUE)
+percent_var &lt;- round(100 * attr(pca_data, "percentVar"))
+
+# Plot with ggplot2
+ggplot(pca_data, aes(PC1, PC2, color = condition, label = name)) +
+    geom_point(size = 4) +
+    geom_text(vjust = -0.8, size = 3) +
+    xlab(paste0("PC1: ", percent_var[1], "% variance")) +
+    ylab(paste0("PC2: ", percent_var[2], "% variance")) +
+    theme_bw() +
+    ggtitle("PCA \u2014 GSE136366 Samples (VST)")
+
+# Save to file
+ggsave("results/pca_plot.pdf", width = 7, height = 5)</code></pre>
+
+                <div class="info-box note">
+                    <strong>Interpreting the PCA Plot</strong>
+                    <p>A well-behaved RNA-seq experiment should show:</p>
+                    <ul>
+                        <li>Replicates from the same condition clustering tightly together</li>
+                        <li>The two conditions (control vs knockdown) separating along PC1 (the axis of greatest variation)</li>
+                    </ul>
+                    <p>If replicates from the same condition are far apart, this may indicate a sample swap, batch effect, or poor data quality for that sample. If conditions do not separate at all, the perturbation (TDP-43 knockdown) may have a modest transcriptional effect, or there may be a problem with the experimental conditions.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="8">
+                <h3>Sample-distance heatmap</h3>
+                <pre><code># Compute pairwise Euclidean distances between samples (on VST data)
+sampleDists       &lt;- dist(t(assay(vsd)))
+sampleDistMatrix  &lt;- as.matrix(sampleDists)
+
+# Plot as a heatmap
+pheatmap(sampleDistMatrix,
+    clustering_distance_rows = sampleDists,
+    clustering_distance_cols = sampleDists,
+    main     = "Sample-to-sample distances (VST)",
+    filename = "results/sample_distance_heatmap.pdf")
+
+# Also display in interactive R session
+pheatmap(sampleDistMatrix,
+    clustering_distance_rows = sampleDists,
+    clustering_distance_cols = sampleDists,
+    main = "Sample-to-sample distances (VST)")</code></pre>
+
+                <div class="info-box note">
+                    <strong>Interpreting the Sample-Distance Heatmap</strong>
+                    <p>The heatmap shows pairwise distances between all samples. Darker blue cells indicate more similar samples (smaller distance). You should see:</p>
+                    <ul>
+                        <li>Replicates of the same condition clustering together (a block of dark-blue cells along the diagonal)</li>
+                        <li>Between-condition pairs appearing as lighter cells (greater distance)</li>
+                    </ul>
+                    <p>Any sample that clusters with the wrong condition group is a warning sign that warrants investigation before proceeding to differential expression analysis.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Exercises                                     -->
+        <!-- ============================================= -->
+        <section id="exercises">
+            <h2>Exercises</h2>
+            <p>Work through these exercises using the commands and concepts from the lab. Refer to the sections above if you need a hint.</p>
+
+            <div class="card">
+                <h3>Exercise 1: Genes with Non-zero Counts</h3>
+                <p>How many genes have a non-zero count in at least one sample? Filter <code>txi$counts</code> and count the remaining rows.</p>
+                <p><em>Hint: Use <code>rowSums(txi$counts &gt; 0) &gt;= 1</code> as a logical filter, then count with <code>sum()</code> or <code>nrow()</code>.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 2: Salmon Mapping Rate</h3>
+                <p>What is the mapping rate for each sample? Salmon reports this in its run log and in the auxiliary output directory.</p>
+                <p><em>Hint: Check <code>counts/salmon/&lt;SRR&gt;/aux_info/meta_info.json</code> for the <code>percent_mapped</code> field. A healthy mapping rate for a human RNA-seq sample against a well-annotated transcriptome is typically <strong>70&ndash;90%</strong>. Rates below 50% may indicate contamination, adapter content, wrong reference, or non-coding RNA libraries. You can also check the SLURM log for the line <code>Mapping rate = ...</code> printed by Salmon at the end of each run.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 3: PCA Sample Clustering</h3>
+                <p>Do the GSE136366 samples cluster by condition (control vs knockdown) along PC1 in your PCA plot? What biological or technical factors could explain it if they do not?</p>
+                <p><em>Consider: batch effects, library size differences, outlier samples, or a weak transcriptional response to the TDP-43 knockdown. If you see an unexpected outlier, check whether its mapping rate or total count differs markedly from the other samples.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 4: Highest Average TPM Gene</h3>
+                <p>Which gene has the highest average TPM across all samples? TPM values are stored in <code>txi$abundance</code>.</p>
+                <p><em>Hint: Calculate row means with <code>rowMeans(txi$abundance)</code>, then use <code>which.max()</code> to find the index of the maximum value, and retrieve the gene name. Highly expressed genes are often housekeeping genes such as <em>ACTB</em> (beta-actin) or ribosomal protein genes.</em></p>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Summary                                       -->
+        <!-- ============================================= -->
+        <section id="summary">
+            <h2>Summary</h2>
+            <p>In this lab, you have:</p>
+            <ul>
+                <li>Downloaded the Ensembl GRCh38 cDNA transcriptome and built a <strong>Salmon index</strong></li>
+                <li>Quantified all GSE136366 samples with <strong>Salmon quasi-mapping</strong>, using bias correction and automatic library-type detection</li>
+                <li>Inspected <code>quant.sf</code> output files and verified library strandedness via <code>lib_format_counts.json</code></li>
+                <li>Imported Salmon transcript-level estimates into R with <strong>tximport</strong>, summarising to gene level using a tx2gene mapping</li>
+                <li>Built a DESeqDataSet, filtered low-count genes, and applied <strong>variance-stabilising transformation (VST)</strong></li>
+                <li>Produced a <strong>PCA plot</strong> and <strong>sample-distance heatmap</strong> to assess sample quality and condition separation</li>
+            </ul>
+
+            <p>These quality-control visualisations are an essential checkpoint before proceeding to differential expression testing. Samples that cluster with the wrong group, show unexpectedly large distances from their replicates, or have very low mapping rates should be investigated and potentially excluded.</p>
+
+            <div class="info-box tip">
+                <strong>What to Check Before Moving On</strong>
+                <ul>
+                    <li>All samples have a Salmon mapping rate above 70%</li>
+                    <li>Replicates cluster together in both the PCA and heatmap</li>
+                    <li>Conditions are separated along a principal component</li>
+                    <li>No obvious outlier samples</li>
+                </ul>
+            </div>
+
+            <p>
+                <strong>Previous:</strong> <a href="lab-alignment.html">Lab 4: Read Alignment with STAR</a>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                <strong>Next:</strong> <a href="lab-nfcore-rnaseq.html">Lab 6: Running nf-core/rnaseq</a>
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        // Add copy buttons to all code blocks
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('pre');
+            codeBlocks.forEach(function(pre) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(pre);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', function() {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.textContent : pre.textContent;
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = 'Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>
