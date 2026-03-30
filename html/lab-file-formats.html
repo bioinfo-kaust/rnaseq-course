@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 1: Genomic File Formats — RNA-seq Comprehensive Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo">The Bioinformatics Platform - KAUST</a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <h1>Lab 1: Genomic File Formats</h1>
+
+        <div class="info-box note">
+            <strong>Learning Objectives</strong>
+            <ul>
+                <li>Explore FASTA, FASTQ, and BAM files using bioinformatics tools</li>
+                <li>Understand the structure and purpose of each genomic file format</li>
+                <li>Use seqkit, and samtools for basic file inspection</li>
+                <li>Debug common issues with corrupted sequencing files</li>
+            </ul>
+        </div>
+
+        <section id="part1">
+            <h2>Part 1: Log in to Ibex</h2>
+            <p>Before we begin, make sure you have completed the <a href="setup.html">Environment Setup</a>. All work in this lab is performed on the KAUST Ibex HPC cluster.</p>
+
+            <div class="step" data-step="1">
+                <h3>Connect to Ibex via SSH</h3>
+                <pre><code># Open your terminal and connect to Ibex
+ssh username@ilogin.ibex.kaust.edu.sa
+
+#start an ineractive job
+srun --cpus-per-task=4 --mem=32G --time=04:00:00 --pty /bin/bash
+
+# Replace "username" with your actual Ibex username
+# Enter your password when prompted
+
+# Confirm your location
+pwd
+
+# List with human-readable file sizes
+ls -lh</code></pre>
+            </div>
+
+            
+            <div class="step" data-step="2">
+                <h3>Create Your Workshop Workspace</h3>
+                <pre><code># Create a directory for today's lab
+mkdir -p ~/workshop/day1
+cd ~/workshop/day1
+
+# Confirm your location
+pwd
+
+# List with human-readable file sizes
+ls -lh</code></pre>
+            </div>
+        </section>
+        <!-- ================================= -->
+        <!-- Part 2: Setup & Sample Data       -->
+        <!-- ================================= -->
+        
+        <section id="Get sample data">
+            <h2>Part 2: Sample Data</h2>
+            
+            <div class="step" data-step="2">
+                <h3>Download data from the web and extract (<code>wget</code> and <code>unzip</code>)</h3>
+                <pre><code># wget is used to download contents frmo a given URL
+#read the help page for wget
+wget -h
+
+#download a sample data using wget:
+wget https://raw.githubusercontent.com/bioinfo-kaust/rnaseq-course/main/materials/genome_data.zip
+
+#check if theere is a new file named <code>genome_data.zip</code> after the download
+ls -lh
+
+#this file is compress we ned to uncompress using unzip command
+unzip genome_data.zip</code></pre>
+</div>
+
+            <div class="step" data-step="3">
+                <h3>Check contents of the sample data (use <code>ls</code>) and <code>cd</code></h3>
+                <pre><code>
+# View what we have
+ls -h/
+
+#check sequences folder:
+ls genome_data
+
+#How many sample files are there?
+ls genome_data | wc -l</code></pre>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Explore the Data Directory Structure</h3>
+                <pre><code># See sizes of all files
+
+# Count files in each subdirectory
+ls genome_data/reference/
+ls genome_data/fastq/
+ls genome_data/bam/
+</code></pre>
+                <div class="info-box note">
+                    <strong>What is in the sample data?</strong>
+                    <p>The sample data contains small example files for each genomic format we will explore today: FASTA reference sequences, FASTQ read files (including intentionally broken ones for debugging practice), and a BAM alignment file.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================ -->
+        <!-- Part 3: Exploring FASTA Files -->
+        <!-- ============================ -->
+        <section id="fasta">
+            <h2>Part 3: Exploring FASTA Files</h2>
+            <p>FASTA is the standard format for storing nucleotide or protein sequences. Each record has a header line starting with <code>&gt;</code> followed by the sequence on subsequent lines.</p>
+
+            <div class="step" data-step="1">
+                <h3>View the Raw FASTA Format</h3>
+                <pre><code># Look at the raw file content
+head -20 genome_data/reference/mini_ref.fasta</code></pre>
+                <div class="info-box note">
+                    <strong>FASTA Format Structure</strong>
+                    <pre><code>&gt;sequence_name optional description
+ATGCATGCATGCATGCATGCATGC
+GCTAGCTAGCTAGCTAGCTAGCTA
+...
+</code></pre>
+                    <ul>
+                        <li>Line 1: Header starting with <code>&gt;</code>, followed by sequence ID and optional description</li>
+                        <li>Lines 2+: The sequence itself, typically wrapped at 60-80 characters per line</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Read the file</h3>
+                <pre><code>
+#Read the fine using nano 
+nano genome_data/reference/mini_ref.fasta
+
+#count number of lines
+wc -l genome_data/reference/mini_ref.fasta
+
+#how do calculate the number of records in this fasta file
+grep ...</code></pre></div>
+<div class="step" data-step="2">
+    <h3>Use seqkit to read genomic files</h3>
+    <pre><code>
+#get list of all tools on ibex:
+module avail
+
+#search for a specific tool:
+module avail seqkit
+
+#load a tool to use in this session
+module load seqkit
+
+# Verify that the tools are loaded
+module list
+
+# Test each tool
+seqkit version
+
+# Run the tool to get Basic statistics
+seqkit stats genome_data/reference/mini_ref.fasta
+
+# Detailed statistics (includes N50, GC content, etc.)
+seqkit stats -a genome_data/reference/mini_ref.fasta</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Extract Sequence Headers and Lengths</h3>
+                <pre><code># View headers only (sequence names)
+seqkit seq -n genome_data/reference/mini_ref.fasta</code></pre>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Explore Compressed Genome Files - Let's get a bigger file (human chr11 DNA)</h3>
+<pre><code># Download human chromosome 11 sequence
+echo "Downloading chromosome 11 genome..."
+wget https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.chromosome.11.fa.gz
+
+#check what you got?
+ls .
+</pre></code>
+                <p>Real genome files are typically compressed with gzip. Bioinformatics tools like seqkit can read compressed files directly.</p>
+                <pre><code># Get statistics for compressed genome files
+seqkit stats Homo_sapiens.GRCh38.dna.chromosome.11.fa.gz
+
+# You can also look at them without decompressing
+zcat Homo_sapiens.GRCh38.dna.chromosome.11.fa.gz | head -5</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Compressed File Handling</strong>
+                    <p>Most bioinformatics tools (seqkit, samtools) can read <code>.gz</code> files directly. Use <code>zcat</code> or <code>zless</code> to view compressed files without decompressing them.</p>
+                </div>
+                <div class="info-box note">
+                    <strong>File Naming Convention</strong>
+                    <p><code>Homo_sapiens.GRCh38.dna.chromosome.11.fa.gz</code></p>
+                    <ul>
+                        <li><strong>Homo_sapiens</strong> - Species name</li>
+                        <li><strong>GRCh38</strong> - Genome assembly version (Genome Reference Consortium Human Build 38)</li>
+                        <li><strong>dna</strong> - DNA sequence type</li>
+                        <li><strong>chromosome.11</strong> - Specific chromosome</li>
+                        <li><strong>.fa.gz</strong> - FASTA format, gzip compressed</li>
+                    </ul>
+                </div>
+            
+            <div class="card">
+                <h3>Exercise 1: Explore the DNA file</h3>
+                <p>Use command-line tools to answer:</p>
+                <ol>
+                    <li>How many nucleotides are on chromosome 11?</li>
+                    <li>What is the size of chr11 FASTA file</li>
+                </ol>
+            </div>
+        </div>
+        </section>
+
+        <!-- ============================= -->
+        <!-- Part 4: Exploring FASTQ Files  -->
+        <!-- ============================= -->
+        <section id="fastq">
+            <h2>Part 4: Exploring FASTQ Files</h2>
+            <p>FASTQ is the standard format for storing sequencing reads with their quality scores. It is the primary output format of Illumina sequencing instruments.</p>
+
+            <div class="step" data-step="1">
+                <h3>View the Raw FASTQ Format</h3>
+                <pre><code># View the first 3 reads (each read = 4 lines)
+head -12 genome_data/fastq/sample_R1.fastq</code></pre>
+                <div class="info-box note">
+                    <strong>FASTQ Format: 4 Lines Per Read</strong>
+                    <table class="schedule-table">
+                        <tr><th>Line</th><th>Content</th><th>Example</th></tr>
+                        <tr><td>1</td><td>Header (starts with <code>@</code>)</td><td><code>@SEQ_ID instrument:run:flowcell:lane:tile:x:y</code></td></tr>
+                        <tr><td>2</td><td>DNA sequence</td><td><code>ATCGATCGATCG...</code></td></tr>
+                        <tr><td>3</td><td>Separator (always <code>+</code>)</td><td><code>+</code></td></tr>
+                        <tr><td>4</td><td>Quality scores (ASCII-encoded Phred scores)</td><td><code>IIIIIIIHGFED...</code></td></tr>
+                    </table>
+                    <p>Each ASCII character on line 4 encodes a quality score. Higher characters (like <code>I</code>) mean higher confidence in the base call. Phred score 30 (<code>?</code>) means 99.9% accuracy.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Get FASTQ Statistics</h3>
+                <pre><code># Basic statistics for each read file
+seqkit stats genome_data/fastq/sample_R1.fastq
+seqkit stats genome_data/fastq/sample_R2.fastq
+
+# Detailed statistics (includes Q20/Q30 percentages)
+seqkit stats -a genome_data/fastq/sample_R1.fastq
+seqkit stats -a genome_data/fastq/sample_R2.fastq</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Understanding Paired-End Reads</h3>
+                <p>In paired-end sequencing, each DNA fragment is read from both ends (R1 = forward, R2 = reverse). Read pairs share the same ID.</p>
+                <pre><code># Compare read IDs between R1 and R2
+# They should match, indicating paired reads
+seqkit seq -n genome_data/fastq/sample_R1.fastq | head -5
+seqkit seq -n genome_data/fastq/sample_R2.fastq | head -5</code></pre>
+                <div class="info-box note">
+                    <strong>Paired-End Sequencing</strong>
+                    <p>R1 and R2 files must always be kept in sync -- the first read in R1 is paired with the first read in R2, and so on. If the files get out of order, downstream alignment will fail.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Debugging: Broken and Truncated FASTQ Files</h3>
+                <p>Real-world data can sometimes be corrupted. The sample data includes intentionally broken files for practice.</p>
+                <pre><code># Try running stats on the broken file -- what happens?
+seqkit stats genome_data/fastq/broken.fastq
+
+# Try the truncated file
+seqkit stats genome_data/fastq/truncated.fastq
+
+# Inspect the broken file manually to find the issue
+head -20 genome_data/fastq/broken.fastq
+
+# Inspect the truncated file
+tail -10 genome_data/fastq/truncated.fastq</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Validating FASTQ Files</strong>
+                    <p>Always run a quick validation on your FASTQ files before starting analysis. Corrupted files can cause silent errors in downstream tools. Use <code>seqkit stats</code> as a fast sanity check -- if it reports an error, investigate before proceeding.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="5">
+                <h3>Batch Statistics on Multiple FASTQ Files</h3>
+                <pre><code># Get statistics for all .fq files at once
+seqkit stats genome_data/sequences/*.fq
+
+# You can also use wildcards for subsets
+seqkit stats genome_data/sequence_0*.fq</code></pre>
+            </div>
+        </section>
+
+        <!-- ============================ -->
+        <!-- Part 5: Exploring BAM Files  -->
+        <!-- ============================ -->
+        <section id="bam">
+            <h2>Part 5: Exploring BAM Files</h2>
+            <p>BAM (Binary Alignment Map) is the compressed binary version of SAM (Sequence Alignment Map). It stores read alignments against a reference genome and is the standard output of alignment tools like STAR and BWA.</p>
+
+            <div class="step" data-step="1">
+                <h3>View the BAM Header</h3>
+                <pre><code># View the header (reference sequences and program info)
+samtools view -H genome_data/bam/sample.bam | head -20</code></pre>
+                <div class="info-box note">
+                    <strong>BAM Header Sections</strong>
+                    <ul>
+                        <li><code>@HD</code> -- Header line with format version and sort order</li>
+                        <li><code>@SQ</code> -- Reference sequence names and lengths</li>
+                        <li><code>@RG</code> -- Read group information (sample, library, platform)</li>
+                        <li><code>@PG</code> -- Programs used to create/process the file</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>View Aligned Reads</h3>
+                <pre><code># View the first 5 aligned reads (SAM format)
+samtools view genome_data/bam/sample.bam | head -5</code></pre>
+                <div class="info-box note">
+                    <strong>SAM Format: Key Columns</strong>
+                    <table class="schedule-table">
+                        <tr><th>Column</th><th>Field</th><th>Description</th></tr>
+                        <tr><td>1</td><td>QNAME</td><td>Read name</td></tr>
+                        <tr><td>2</td><td>FLAG</td><td>Bitwise flag (encodes read properties)</td></tr>
+                        <tr><td>3</td><td>RNAME</td><td>Reference sequence name</td></tr>
+                        <tr><td>4</td><td>POS</td><td>1-based leftmost mapping position</td></tr>
+                        <tr><td>5</td><td>MAPQ</td><td>Mapping quality</td></tr>
+                        <tr><td>6</td><td>CIGAR</td><td>Alignment description (matches, insertions, deletions)</td></tr>
+                        <tr><td>10</td><td>SEQ</td><td>Read sequence</td></tr>
+                        <tr><td>11</td><td>QUAL</td><td>Base quality scores</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Alignment Summary Statistics</h3>
+                <pre><code># Get a comprehensive alignment summary
+samtools flagstat genome_data/bam/sample.bam
+
+# Count total reads in the BAM file
+samtools view -c genome_data/bam/sample.bam
+
+# Count only properly paired reads (FLAG bit 0x2)
+samtools view -c -f 2 genome_data/bam/sample.bam</code></pre>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Understanding SAM Flags</h3>
+                <p>SAM flags are bitwise values that encode multiple properties of a read in a single number. For example, FLAG 99 means the read is paired, mapped in a proper pair, the mate is on the reverse strand, and this is the first read in the pair.</p>
+                <pre><code># Count reads by their flag values
+samtools view genome_data/bam/sample.bam | cut -f2 | sort | uniq -c | sort -rn | head -10
+
+# Filter for unmapped reads (FLAG bit 0x4)
+samtools view -c -f 4 genome_data/bam/sample.bam
+
+# Filter for mapped reads (exclude unmapped)
+samtools view -c -F 4 genome_data/bam/sample.bam</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Decoding SAM Flags</strong>
+                    <p>Use the Broad Institute's interactive tool to decode any SAM flag value: <a href="https://broadinstitute.github.io/picard/explain-flags.html" target="_blank">https://broadinstitute.github.io/picard/explain-flags.html</a></p>
+                </div>
+            </div>
+
+            <div class="step" data-step="5">
+                <h3>SAM vs BAM: View the Text Version</h3>
+                <pre><code># The sample data also includes a SAM file (text format)
+head -20 genome_data/misc/sample.sam</code></pre>
+                <div class="info-box note">
+                    <strong>SAM vs BAM</strong>
+                    <ul>
+                        <li><strong>SAM</strong> (Sequence Alignment Map) -- Human-readable text format. Useful for inspection and debugging, but large in size.</li>
+                        <li><strong>BAM</strong> (Binary Alignment Map) -- Compressed binary version of SAM. Much smaller and faster to process. This is the format used in practice.</li>
+                        <li>Convert between them: <code>samtools view -bS input.sam &gt; output.bam</code></li>
+                        <li>BAM files are typically sorted and indexed for fast random access: <code>samtools sort</code> and <code>samtools index</code></li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ============ -->
+        <!-- Exercises     -->
+        <!-- ============ -->
+        <section id="exercises">
+            <h2>Exercises</h2>
+            <p>Try these exercises on your own using the commands and tools you have learned. Refer to the sections above if you get stuck.</p>
+
+            <div class="card">
+                <h3>Exercise 1: Count Sequences</h3>
+                <p>How many sequences are in <code>genome_data/reference/mini_ref.fasta</code>?</p>
+                <p><em>Hint: Use <code>seqkit stats</code> or <code>grep -c "^&gt;"</code></em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 2: Average Read Length</h3>
+                <p>What is the average read length in <code>genome_data/fastq/sample_R1.fastq</code>?</p>
+                <p><em>Hint: Use <code>seqkit stats -a</code> and look at the "avg_len" column.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 3: Mapped Reads</h3>
+                <p>How many mapped reads are in <code>genome_data/bam/sample.bam</code>?</p>
+                <p><em>Hint: Use <code>samtools flagstat</code> or <code>samtools view -c -F 4</code></em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 4: Pattern Search</h3>
+                <p>Find all reads in <code>genome_data/fastq/sample_R1.fastq</code> that contain the pattern "ATCG". How many are there?</p>
+                <p><em>Hint: Use <code>seqkit grep -s -r -p "ATCG"</code> and pipe to <code>seqkit stats</code></em></p>
+            </div>
+        </section>
+
+        <!-- ========= -->
+        <!-- Summary   -->
+        <!-- ========= -->
+        <section id="summary">
+            <h2>Summary</h2>
+            <p>In this lab, you have:</p>
+            <ul>
+                <li>Loaded bioinformatics modules using the HPC module system</li>
+                <li>Explored <strong>FASTA</strong> files using <code>seqkit</code> to view sequences, headers, and statistics</li>
+                <li>Explored <strong>FASTQ</strong> files, understood the 4-line format, and examined paired-end reads</li>
+                <li>Explored <strong>BAM/SAM</strong> files using <code>samtools</code> to view headers, alignments, and flag statistics</li>
+                <li>Practiced debugging with intentionally broken FASTQ files</li>
+            </ul>
+            <p><strong>Next:</strong> <a href="lab-public-data.html">Lab 2: Public Data Retrieval</a></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        // Add copy buttons to all code blocks
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('pre');
+            codeBlocks.forEach(function(pre) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(pre);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', function() {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.textContent : pre.textContent;
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = 'Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>

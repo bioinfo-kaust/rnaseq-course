@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 2: Public Data Retrieval — RNA-seq Comprehensive Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo">The Bioinformatics Platform - KAUST</a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <h1>Lab 2: Public Data Retrieval</h1>
+        <p>In this lab, you will find, download, and organize the course dataset (GSE136366) and the human reference genome on the Ibex cluster, ready for all downstream analysis.</p>
+
+        <div class="info-box note">
+            <strong>Learning Objectives</strong>
+            <ul>
+                <li>Navigate NCBI GEO and SRA to find datasets</li>
+                <li>Download raw sequencing data using sra-tools (<code>prefetch</code>, <code>fasterq-dump</code>)</li>
+                <li>Batch-download multiple SRA files using an accession list</li>
+                <li>Download reference genomes from NCBI using the <code>datasets</code> CLI tool</li>
+                <li>Download reference genomes from Ensembl using <code>wget</code></li>
+                <li>Use <code>seqkit</code> to summarize and subsample data</li>
+                <li>Organize data with proper directory structure on Ibex</li>
+            </ul>
+        </div>
+
+        <section>
+            <h2>Part 1: Setup on Ibex</h2>
+            <p>Connect to Ibex, start an interactive session, and load the tools needed for this lab.</p>
+
+            <div class="step" data-step="1">
+                <h3>Connect and start an interactive session</h3>
+                <pre><code># Connect to Ibex
+ssh username@ilogin.ibex.kaust.edu.sa
+
+# Start an interactive session (never run analyses on login nodes!)
+srun --cpus-per-task=4 --mem=32G --time=04:00:00 --pty /bin/bash</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Load required modules</h3>
+                <pre><code># Load bioinformatics tools
+module load sratoolkit
+module load seqkit
+
+# Verify tools are loaded
+module list</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Navigate to your workspace</h3>
+                <pre><code># Navigate to your scratch directory
+cd /ibex/user/$USER
+
+# Create directories for this lab
+mkdir workshop
+cd workshop
+
+# Create directories for this lab
+mkdir -p raw_data references
+
+# Verify
+ls -la</code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>Part 2: Finding Data on NCBI</h2>
+            <p>Before downloading data, you need to know how to find it. NCBI hosts two key resources:</p>
+                <ol>
+                <li>GEO (Gene Expression Omnibus) for expression data: <a href="https://www.ncbi.nlm.nih.gov/geo">https://www.ncbi.nlm.nih.gov/geo</a></li>    
+                <li>SRA (Sequence Read Archive) for raw sequencing data: <a href="https://www.ncbi.nlm.nih.gov/sra">https://www.ncbi.nlm.nih.gov/sra</a></li>
+                </ol>
+                
+
+            <div class="step" data-step="ncbi-1">
+                <h3>Step 1: Navigate to NCBI GEO</h3>
+                <p>NCBI GEO is a public repository for gene expression and genomics datasets.</p>
+                <ol>
+                    <li>Open your web browser and go to <a href="https://www.ncbi.nlm.nih.gov/geo/" target="_blank">https://www.ncbi.nlm.nih.gov/geo/</a></li>
+                    <li>You will see the GEO homepage with a search box at the top</li>
+                </ol>
+            </div>
+
+            <div class="step" data-step="ncbi-2">
+                <h3>Step 2: Search for a Dataset</h3>
+                <p>As an example, search for accession <code>GSE136366</code> (a TDP-43 RNA-seq study):</p>
+                <ol>
+                    <li>In the search box, type: <code>GSE136366</code></li>
+                    <li>Click "Search" or press Enter</li>
+                    <li>Click on the accession number <strong>GSE136366</strong> to view the full record</li>
+                </ol>
+            </div>
+
+            <div class="step" data-step="ncbi-3">
+                <h3>Step 3: Explore the GEO Series Page</h3>
+                <p>The GEO Series page contains important information about the dataset:</p>
+                <ul>
+                    <li><strong>Title:</strong> Full study title and description</li>
+                    <li><strong>Summary:</strong> Experimental design and objectives</li>
+                    <li><strong>Overall design:</strong> Sample information and conditions</li>
+                    <li><strong>Samples:</strong> List of all individual samples (GSM accessions)</li>
+                    <li><strong>Citation:</strong> Link to the published paper</li>
+                </ul>
+            </div>
+
+            <div class="step" data-step="ncbi-4">
+                <h3>Step 4: Navigate to SRA from GEO</h3>
+                <p>To access the raw FASTQ files, you need to go to the SRA:</p>
+                <ol>
+                    <li>Scroll down to the <strong>"Relations"</strong> section on the GEO page</li>
+                    <li>Look for the link labeled <strong>"SRA"</strong> and click on it</li>
+                    <li>Alternatively, click on any individual sample (GSM accession) to find its SRA run</li>
+                </ol>
+            </div>
+
+            <div class="step" data-step="ncbi-5">
+                <h3>Step 5: SRA Run Selector</h3>
+                <p>The SRA Run Selector provides metadata about each sequencing run:</p>
+                <ol>
+                    <li>Click "Send results to Run selector" if not already there</li>
+                    <li>The table shows important metadata columns:
+                        <table class="schedule-table">
+                            <tr><th>Column</th><th>Description</th></tr>
+                            <tr><td><strong>Run</strong></td><td>SRR accession number (used for download)</td></tr>
+                            <tr><td><strong>Sample</strong></td><td>Sample name from the study</td></tr>
+                            <tr><td><strong>LibraryLayout</strong></td><td>SINGLE or PAIRED (single-end vs paired-end)</td></tr>
+                            <tr><td><strong>Bases</strong></td><td>Total sequencing bases</td></tr>
+                            <tr><td><strong>Spots</strong></td><td>Number of reads (or read pairs)</td></tr>
+                            <tr><td><strong>Platform</strong></td><td>Sequencing platform (e.g., ILLUMINA)</td></tr>
+                        </table>
+                    </li>
+                </ol>
+            </div>
+
+            <div class="info-box tip">
+                <strong>Tip: Always Check the Metadata!</strong>
+                <p>Before downloading any dataset, review the sequencing platform, library layout (single-end vs paired-end), read length, and total read count. This information determines which analysis pipeline to use.</p>
+            </div>
+
+            <div class="step" data-step="ncbi-6">
+                <h3>Course Dataset: GSE136366</h3>
+                <p>For this course, we use <strong>GSE136366</strong> — an RNA-seq study investigating the role of TDP-43 (TARDBP) in gene regulation in human cells:</p>
+                <table class="schedule-table">
+                    <tr><th>Property</th><th>Value</th></tr>
+                    <tr><td>GEO Accession</td><td><code>GSE136366</code></td></tr>
+                    <tr><td>Organism</td><td><em>Homo sapiens</em></td></tr>
+                    <tr><td>Study</td><td>TDP-43 (TARDBP) RNA-seq</td></tr>
+                    <tr><td>Library Layout</td><td>Paired-end</td></tr>
+                    <tr><td>Platform</td><td>Illumina</td></tr>
+                    <tr><td>Reference</td><td>GRCh38 (human)</td></tr>
+                </table>
+                <div class="info-box tip">
+                    <strong>Tip: Get the SRR accession list from SRA Run Selector</strong>
+                    <p>On the GSE136366 GEO page, click the SRA link and then "Send results to Run Selector". In the Run Selector, click <strong>Accession List</strong> to download a text file (<code>SRR_Acc_List.txt</code>) with all SRR IDs. Use this file for batch downloading below.</p>
+                </div>
+            </div>
+        </section>
+
+        <section>
+            <h2>Part 3: Downloading Raw Sequencing Data with sra-tools</h2>
+            <p>The SRA Toolkit provides command-line tools to download and convert SRA data. The two main commands are <code>prefetch</code> (downloads compressed .sra files) and <code>fasterq-dump</code> (converts .sra to FASTQ).</p>
+
+            <div class="step" data-step="1">
+                <h3>Navigate to your raw data directory</h3>
+                <pre><code>cd /ibex/user/$USER/workshop/raw_data</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Batch download GSE136366 using an accession list</h3>
+                <p>Upload the <code>SRR_Acc_List.txt</code> file you downloaded from the SRA Run Selector to Ibex (or copy its contents). Then use a loop to download all samples:</p>
+                <pre><code># Move the accession list to your raw_data directory
+# (upload via scp, or copy-paste the SRR IDs into a file)
+# Example contents of SRR_Acc_List.txt:
+#   SRR10009250
+#   SRR10009251
+#   SRR10009252
+#   ... (one SRR per line)
+
+# Batch prefetch all accessions
+prefetch --option-file SRR_Acc_List.txt
+
+# Convert each SRA file to paired FASTQ
+while read srr; do
+    echo "Converting $srr ..."
+    fasterq-dump --split-files --threads 4 ${srr}/${srr}.sra
+    gzip ${srr}_1.fastq ${srr}_2.fastq
+done &lt; SRR_Acc_List.txt
+
+# Check what you have
+ls -lh *.fastq.gz</code></pre>
+                <div class="info-box note">
+                    <strong>Storage tip</strong>
+                    <p>Compress FASTQ files immediately after conversion (<code>gzip</code>). Raw FASTQ files are very large; gzip reduces their size 4–5×. Use <code>/ibex/user/$USER</code> for all large files — home directories have limited quota.</p>
+                </div>
+            </div>
+
+        </section>
+
+        <section>
+            <h2>Part 4: Downloading Reference Genomes</h2>
+            <p>Reference genomes and gene annotations are available from two major sources: <strong>NCBI</strong> and <strong>Ensembl</strong>. Both provide the same biological data but differ in naming conventions, annotation sources, and access tools. We will cover both approaches.</p>
+
+            <div class="step" data-step="ref-0">
+                <h3>Navigate to your references directory</h3>
+                <pre><code>cd /ibex/user/$USER/workshop/references</code></pre>
+            </div>
+
+            <!-- ===== Option A: NCBI datasets ===== -->
+            <h3 style="margin-top:2rem; padding:0.5rem 1rem; background:#e8f4fd; border-left:4px solid #2196F3;">Option A: Download from NCBI using <code>datasets</code></h3>
+            <p>NCBI provides the <code>datasets</code> command-line tool &ndash; a modern, fast way to download genomes, annotations, and gene data directly from the NCBI database.</p>
+
+            <div class="step" data-step="ncbi-ds-1">
+                <h3>Get the NCBI datasets tool on Ibex</h3>
+                <pre><code># 
+module load ncbi_datasets_tools
+
+# Check the help message
+datasets --help</code></pre>
+            </div>
+
+            <div class="step" data-step="ncbi-ds-2">
+                <h3>Search for a genome assembly</h3>
+                <p>You can search for genomes by organism name or assembly accession:</p>
+                <pre><code># Search for human genome assemblies
+datasets summary genome taxon "Homo sapiens" --reference | head -5
+
+# Search by specific assembly accession (GRCh38 / hg38)
+datasets summary genome accession GCF_000001405.40</code></pre>
+                <div class="info-box note">
+                    <strong>Understanding Assembly Accessions</strong>
+                    <ul>
+                        <li><code>GCF_</code> prefix &ndash; NCBI RefSeq assembly (curated, recommended)</li>
+                        <li><code>GCA_</code> prefix &ndash; GenBank assembly (submitted by researchers)</li>
+                    </ul>
+                    <p>For most analyses, prefer <strong>RefSeq (GCF_)</strong> assemblies as they are more standardized.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="ncbi-ds-3">
+                <h3>Download genome and annotation</h3>
+                <p>The <code>datasets download</code> command fetches the genome FASTA, annotation (GTF/GFF3), and metadata in a single zip archive:</p>
+                <pre><code># Download human GRCh38 reference genome with annotations
+# Note: This is a large download (~3 GB) — run as a batch job on Ibex
+datasets download genome accession GCF_000001405.40 \
+    --include genome,gtf,seq-report
+
+# This creates a file called ncbi_dataset.zip
+ls -lh ncbi_dataset.zip</code></pre>
+                <div class="info-box note">
+                    <strong><code>--include</code> Options</strong>
+                    <table class="schedule-table">
+                        <tr><th>Option</th><th>Downloads</th></tr>
+                        <tr><td><code>genome</code></td><td>Genome FASTA sequence</td></tr>
+                        <tr><td><code>gtf</code></td><td>Gene annotation in GTF format</td></tr>
+                        <tr><td><code>gff3</code></td><td>Gene annotation in GFF3 format</td></tr>
+                        <tr><td><code>rna</code></td><td>Transcript sequences (RNA FASTA)</td></tr>
+                        <tr><td><code>protein</code></td><td>Protein sequences (amino acid FASTA)</td></tr>
+                        <tr><td><code>cds</code></td><td>Coding sequences (CDS FASTA)</td></tr>
+                        <tr><td><code>seq-report</code></td><td>Sequence report with chromosome info</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="step" data-step="ncbi-ds-4">
+                <h3>Extract and organize the downloaded files</h3>
+                <pre><code># Extract the zip archive
+unzip ncbi_dataset.zip
+
+# See the directory structure
+ls ncbi_dataset/data/GCF_000001405.40/
+
+# The extracted files will include:
+#   GCF_000001405.40_GRCh38.p14_genomic.fna  - genome FASTA (chromosomes)
+#   genomic.gtf                               - gene annotation (GTF)
+#   sequence_report.jsonl                     - sequence metadata
+
+# Copy files to your references directory with clear names
+cp ncbi_dataset/data/GCF_000001405.40/*.fna references/GRCh38_genome.fa
+cp ncbi_dataset/data/GCF_000001405.40/genomic.gtf references/GRCh38_genes.gtf
+
+# Verify the genome (should report ~3 GB sequence, 25 chromosomes)
+seqkit stats references/GRCh38_genome.fa
+
+# Clean up the zip and extracted directory
+rm -r ncbi_dataset ncbi_dataset.zip</code></pre>
+            </div>
+
+            <div class="step" data-step="ncbi-ds-5">
+                <h3>Download multiple genomes or by taxon</h3>
+                <pre><code># Download by species name (gets the reference genome)
+datasets download genome taxon "Homo sapiens" \
+    --reference --include genome,gtf
+
+# Check available GRCh38 patch versions
+datasets summary genome taxon "Homo sapiens" --reference | \
+    dataformat tsv genome --fields assminfo-name,assminfo-level</code></pre>
+            </div>
+
+            <div class="step" data-step="ncbi-ds-6">
+                <h3>Explore genome metadata with <code>dataformat</code></h3>
+                <p>The companion tool <code>dataformat</code> helps you extract structured information from NCBI datasets:</p>
+                <pre><code># Get a TSV summary of the human GRCh38 genome metadata
+datasets summary genome accession GCF_000001405.40 | \
+    dataformat tsv genome --fields organism-name,assminfo-name,assminfo-level,assmstats-total-sequence-len,annotinfo-gene-count
+
+# Fields you can query:
+# organism-name, assminfo-name, assminfo-level,
+# assmstats-total-sequence-len, assmstats-contig-n50,
+# annotinfo-gene-count, annotinfo-protein-count</code></pre>
+            </div>
+
+            <!-- ===== Option B: Ensembl FTP ===== -->
+            <h3 style="margin-top:2rem; padding:0.5rem 1rem; background:#e8f8e8; border-left:4px solid #4CAF50;">Option B: Download from Ensembl using <code>wget</code></h3>
+            <p>Ensembl provides reference genomes and gene annotations for thousands of species. Files are organized on their FTP server by release version, species, and data type.</p>
+
+            <div class="step" data-step="ensembl-1">
+                <h3>Understanding the Ensembl FTP Structure</h3>
+                <p>The Ensembl FTP site is organized as follows:</p>
+                <pre><code>ftp.ensemblgenomes.org/pub/bacteria/
+├── release-57/
+│   ├── fasta/                    # Sequence files (genome, cDNA, protein)
+│   │   └── bacteria_0_collection/
+│   │       └── escherichia_coli_.../
+│   │           └── dna/          # Genomic DNA sequences
+│   ├── gff3/                     # Gene annotations (GFF3 format)
+│   │   └── bacteria_0_collection/
+│   └── gtf/                      # Gene annotations (GTF format)
+└── current/                      # Symlink to latest release</code></pre>
+                <div class="info-box note">
+                    <strong>Ensembl vs Ensembl Genomes</strong>
+                    <ul>
+                        <li><strong>ftp.ensembl.org</strong> &ndash; Vertebrate species (human, mouse, zebrafish, etc.)</li>
+                        <li><strong>ftp.ensemblgenomes.org</strong> &ndash; Non-vertebrate species (bacteria, plants, fungi, etc.)</li>
+                    </ul>
+                    <p>Use the appropriate server for your organism.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="ensembl-2">
+                <h3>Download human GRCh38 reference genome from Ensembl</h3>
+                <pre><code># Download human GRCh38 primary assembly (chromosome sequences only — smaller than full assembly)
+wget https://ftp.ensembl.org/pub/release-110/fasta/homo_sapiens/dna/Homo_sapiens.GRCh38.dna.primary_assembly.fa.gz</code></pre>
+            </div>
+
+            <div class="step" data-step="ensembl-3">
+                <h3>Download gene annotation</h3>
+                <pre><code># Download GTF annotation (Ensembl release 110, GRCh38)
+wget https://ftp.ensembl.org/pub/release-110/gtf/homo_sapiens/Homo_sapiens.GRCh38.110.gtf.gz</code></pre>
+            </div>
+
+            <div class="step" data-step="ensembl-4">
+                <h3>Decompress and verify</h3>
+                <pre><code># Decompress all downloaded files
+gunzip *.gz
+
+# Check reference genome statistics (human GRCh38 primary assembly: ~3 GB, 25 sequences)
+seqkit stats Homo_sapiens.GRCh38.dna.primary_assembly.fa
+
+# Rename for convenience
+mv Homo_sapiens.GRCh38.dna.primary_assembly.fa GRCh38_genome.fa
+mv Homo_sapiens.GRCh38.110.gtf GRCh38_genes.gtf
+
+# List files with sizes
+ls -lh</code></pre>
+            </div>
+
+            <!-- ===== Comparison ===== -->
+            <div class="info-box note">
+                <strong>NCBI vs Ensembl: Which to Use?</strong>
+                <table class="schedule-table">
+                    <tr><th>Feature</th><th>NCBI (datasets)</th><th>Ensembl (wget)</th></tr>
+                    <tr><td>Download tool</td><td><code>datasets</code> tool</td><td><code>wget</code> / <code>curl</code></td></tr>
+                    <tr><td>Naming</td><td>RefSeq accessions (GCF_/GCA_)</td><td>Ensembl-specific names</td></tr>
+                    <tr><td>Annotations</td><td>NCBI RefSeq gene models</td><td>Ensembl/GENCODE gene models</td></tr>
+                    <tr><td>Chromosome names</td><td>NC_ accessions or chromosome numbers</td><td>Chromosome numbers (1, 2, X, MT)</td></tr>
+                    <tr><td>Best for</td><td>Prokaryotes, clinical/NCBI pipelines</td><td>Eukaryotes, RNA-seq, GENCODE consistency</td></tr>
+                </table>
+                <p>Both are valid choices. The key is to be consistent &ndash;<br/> Always use the genome and annotation from the <em>same source</em> to avoid mismatches in chromosome names.</p>
+            </div>
+        </section>
+
+        <section>
+            <h2>Part 5: Subsampling Data</h2>
+            <p>Large datasets can take a long time to process. Subsampling creates a smaller representative subset that is useful for testing pipelines and for workshop exercises.</p>
+
+            <div class="step" data-step="1">
+                <h3>Subsample GSE136366 samples to 1 million reads each</h3>
+                <p>Full RNA-seq datasets can be large. For hands-on exercises, subsample each sample to 1 million read pairs:</p>
+                <pre><code>cd /ibex/user/$USER/workshop/raw_data
+
+# Subsample each sample — loop over all downloaded FASTQs
+# -n 1000000: keep 1 million reads
+# -s 42: fixed seed for reproducibility
+for srr in $(cat SRR_Acc_List.txt); do
+    echo "Subsampling $srr ..."
+    seqkit sample -n 1000000 -s 42 ${srr}_1.fastq.gz -o ${srr}_sub_1.fastq.gz
+    seqkit sample -n 1000000 -s 42 ${srr}_2.fastq.gz -o ${srr}_sub_2.fastq.gz
+done
+
+# Verify the subsampled files
+seqkit stats *_sub_1.fastq.gz</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Organize your workspace</h3>
+                <pre><code># Create a clear directory structure for the course
+mkdir -p /ibex/user/$USER/workshop/{raw_data,trimmed,aligned,counts,results}
+
+# List final directory structure
+ls /ibex/user/$USER/workshop/</code></pre>
+            </div>
+
+            <div class="info-box note">
+                <strong>Why Subsample?</strong>
+                <p>Subsampling is useful when you want to quickly test a pipeline, debug parameters, or run a workshop exercise without waiting hours for full datasets to process. Always use the <code>-s</code> (seed) flag so results are reproducible.</p>
+            </div>
+        </section>
+
+        <section>
+            <h2>Part 6: Exploring Downloaded Data</h2>
+            <p>Before proceeding with analysis, always inspect your downloaded data to make sure everything looks correct.</p>
+
+            <div class="step" data-step="1">
+                <h3>Inspect raw reads</h3>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+# Quick look at the first few reads from one GSE136366 sample (12 lines = 3 reads)
+zcat raw_data/$(head -1 raw_data/SRR_Acc_List.txt)_1.fastq.gz | head -12</code></pre>
+                <div class="info-box note">
+                    <strong>FASTQ Format Reminder</strong>
+                    <p>Each read consists of 4 lines:</p>
+                    <ol>
+                        <li><code>@</code> followed by the read identifier</li>
+                        <li>The DNA sequence</li>
+                        <li><code>+</code> (separator line)</li>
+                        <li>Quality scores (ASCII-encoded Phred scores)</li>
+                    </ol>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Reference genome statistics</h3>
+                <pre><code># Get stats for the human GRCh38 reference genome
+seqkit stats references/GRCh38_genome.fa</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Preview the annotation file</h3>
+                <pre><code># View the first 30 lines of the GTF annotation (skip comment lines)
+grep -v "^#" references/GRCh38_genes.gtf | head -10
+
+# Count annotated genes
+grep -P "\tgene\t" references/GRCh38_genes.gtf | wc -l</code></pre>
+            </div>
+        </section>
+
+        <section>
+            <h2>Exercises</h2>
+
+            <div class="card">
+                <h3>Exercise 1: Read Counts</h3>
+                <p>How many reads are in the full (non-subsampled) FASTQ for one GSE136366 sample? Compare it to the subsampled version.</p>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code>SRR=$(head -1 raw_data/SRR_Acc_List.txt)
+seqkit stats raw_data/${SRR}_1.fastq.gz
+seqkit stats raw_data/${SRR}_sub_1.fastq.gz</code></pre>
+                </details>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 2: Genome Size</h3>
+                <p>How large (in bases) is the human GRCh38 primary assembly? How many sequences does it contain?</p>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code>seqkit stats references/GRCh38_genome.fa</code></pre>
+                </details>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 3: Gene Count</h3>
+                <p>How many genes are annotated in the GRCh38 GTF file?</p>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code>grep -P "\tgene\t" references/GRCh38_genes.gtf | wc -l</code></pre>
+                </details>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 4: Metadata exploration</h3>
+                <p>Use the <code>dataformat</code> tool to find out how many protein-coding genes are annotated in the GRCh38 genome on NCBI.</p>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code>datasets summary genome accession GCF_000001405.40 | \
+    dataformat tsv genome --fields annotinfo-gene-count,annotinfo-protein-count</code></pre>
+                </details>
+            </div>
+        </section>
+
+        <section>
+            <h2>Summary</h2>
+            <p>In this lab, you have:</p>
+            <ul>
+                <li>Learned how to navigate NCBI GEO and SRA to find public sequencing datasets</li>
+                <li>Downloaded raw sequencing data from SRA using <code>prefetch</code> and <code>fasterq-dump</code></li>
+                <li>Learned to batch-download multiple SRA files using an accession list file</li>
+                <li>Downloaded a reference genome using <strong>NCBI <code>datasets</code></strong> CLI (Option A)</li>
+                <li>Downloaded a reference genome from <strong>Ensembl FTP</strong> using <code>wget</code> (Option B)</li>
+                <li>Explored genome metadata using <code>dataformat</code></li>
+                <li>Used <code>seqkit</code> to summarize and subsample FASTQ data</li>
+                <li>Organized all data with a proper directory structure on Ibex</li>
+            </ul>
+            <p><strong>Next:</strong> <a href="lab-qc-preprocessing.html">Lab 3: FastQC, fastp, and MultiQC</a></p>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        // Add copy buttons to all code blocks
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('pre');
+            codeBlocks.forEach(function(pre) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(pre);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', function() {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.textContent : pre.textContent;
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = 'Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>
