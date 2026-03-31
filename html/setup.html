@@ -101,6 +101,122 @@ module load salmon</code></pre>
         </section>
 
         <!-- ================================================ -->
+        <!-- Working with Files                               -->
+        <!-- ================================================ -->
+        <section>
+            <h2>Working with Files Between Your Computer and Ibex</h2>
+            <p>You will regularly need to transfer files to and from Ibex — uploading scripts, downloading results, and opening output files locally. Choose the method that suits your operating system.</p>
+
+            <h3>Command Line: SCP and Rsync</h3>
+            <p>Works on macOS, Linux, and Windows (WSL2 or Git Bash). Run these commands <strong>on your local machine</strong>.</p>
+
+            <div class="info-box note">
+                <strong>Replace <code>username</code> with your Ibex username in all commands below.</strong>
+            </div>
+
+            <h4>Copy a file to Ibex</h4>
+            <div class="code-container">
+                <pre><code># Upload a single file
+scp local_file.txt username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/
+
+# Upload an entire folder
+scp -r local_folder/ username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+
+            <h4>Download a file from Ibex</h4>
+            <div class="code-container">
+                <pre><code># Download a single file
+scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/results/pca_plot.pdf ./
+
+# Download an entire results folder
+scp -r username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/results/ ./</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+
+            <h4>Sync a folder with rsync (recommended for large transfers)</h4>
+            <p>Rsync only transfers new or changed files, making it much faster than <code>scp</code> for repeated syncs.</p>
+            <div class="code-container">
+                <pre><code># Sync local folder → Ibex (upload)
+rsync -avz --progress local_folder/ \
+    username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/
+
+# Sync Ibex results → local folder (download)
+rsync -avz --progress \
+    username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/results/ \
+    ./results/</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+
+            <h3>macOS: Browse Ibex Files in Finder</h3>
+            <p>macOS Finder can connect to Ibex over SMB with no extra software. Your Ibex directory mounts as a network drive and you can open files directly in any application.</p>
+
+            <div class="step" data-step="1">
+                <h4>Open "Connect to Server"</h4>
+                <p>In Finder, go to <strong>Go &rarr; Connect to Server&hellip;</strong> (or press <kbd>&#8984; Cmd</kbd> + <kbd>K</kbd>).</p>
+            </div>
+
+            <div class="step" data-step="2">
+                <h4>Enter the server address</h4>
+                <p>Type the following in the address bar and click <strong>Connect</strong>:</p>
+                <div class="code-container">
+                    <pre><code>smb://samba.ibex.kaust.edu.sa/weka_user/umerhm</code></pre>
+                    <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+                </div>
+                <div class="info-box tip">
+                    <strong>Save it for next time</strong>
+                    <p>Click the <strong>+</strong> button next to the address bar to add this server to your <em>Favourite Servers</em> list. You can then connect with one click in future.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h4>Authenticate and browse</h4>
+                <p>Enter your Ibex username and password when prompted. Ibex will mount as a drive in Finder's sidebar under <strong>Locations</strong>. Navigate to <code>/ibex/user/username/workshop</code> to access your files. You can open, copy, and drag files between Finder and your local Desktop just like any other folder.</p>
+            </div>
+
+            <div class="step" data-step="4">
+                <h4>Disconnect when done</h4>
+                <p>Right-click the mounted drive in the Finder sidebar and choose <strong>Eject</strong>, or press <kbd>&#8984; Cmd</kbd> + <kbd>E</kbd> while the drive is selected.</p>
+            </div>
+
+            <h3>Windows: MobaXterm</h3>
+            <p>MobaXterm is a free terminal for Windows that includes a built-in SSH client, SFTP file browser, and X11 display — all in one application.</p>
+
+            <div class="step" data-step="1">
+                <h4>Install MobaXterm</h4>
+                <ol>
+                    <li>Download the free <strong>Home Edition</strong> from <a href="https://mobaxterm.mobatek.net/download.html" target="_blank" rel="noopener">mobaxterm.mobatek.net</a></li>
+                    <li>Run the installer (or use the portable version — no installation required)</li>
+                </ol>
+            </div>
+
+            <div class="step" data-step="2">
+                <h4>Connect to Ibex</h4>
+                <ol>
+                    <li>Open MobaXterm and click <strong>Session</strong> &rarr; <strong>SSH</strong></li>
+                    <li>Enter <code>ilogin.ibex.kaust.edu.sa</code> as the remote host</li>
+                    <li>Enter your username and click <strong>OK</strong></li>
+                    <li>MobaXterm automatically opens an <strong>SFTP panel</strong> on the left side of the terminal window showing your Ibex files</li>
+                </ol>
+            </div>
+
+            <div class="step" data-step="3">
+                <h4>Transfer files with the SFTP panel</h4>
+                <ul>
+                    <li><strong>Upload:</strong> drag files from Windows Explorer into the SFTP panel, or use the upload button (arrow pointing up)</li>
+                    <li><strong>Download:</strong> right-click a file in the SFTP panel and choose <em>Download</em>, or drag it to your desktop</li>
+                    <li><strong>Navigate:</strong> click folders in the SFTP panel just like Windows Explorer</li>
+                    <li><strong>Edit a file:</strong> right-click &rarr; <em>Open with</em> to open a remote file in any local application; MobaXterm automatically re-uploads it when you save</li>
+                </ul>
+            </div>
+
+            <div class="info-box tip">
+                <strong>Save your session</strong>
+                <p>In MobaXterm, right-click your connection in the <em>Sessions</em> sidebar and choose <em>Save session</em> so you don't need to re-enter the host and username each time.</p>
+            </div>
+        </section>
+
+        <!-- ================================================ -->
         <!-- Conda environment on Ibex                        -->
         <!-- ================================================ -->
         <section>
