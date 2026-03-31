@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 6: nf-core/rnaseq Pipeline — RNA-seq Comprehensive Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo">The Bioinformatics Platform - KAUST</a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <h1>Lab 6: Running nf-core/rnaseq on Ibex</h1>
+
+        <div class="lab-nav">
+            <a href="#part1"><span class="part-num">Part 1</span><span class="part-label">Setup on Ibex</span></a>
+            <a href="#part2"><span class="part-num">Part 2</span><span class="part-label">Create Samplesheet</span></a>
+            <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">KAUST Profile</span></a>
+            <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">Run Pipeline</span></a>
+            <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">Monitor Progress</span></a>
+            <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">Inspect Outputs</span></a>
+        </div>
+
+        <p>In this lab you will run the <strong>nf-core/rnaseq</strong> pipeline on the KAUST Ibex HPC cluster using the <strong>full GSE136366 dataset</strong>. The pipeline automates the full preprocessing and quantification workflow — from raw reads to expression matrices — in a reproducible and scalable way.</p>
+
+        <div class="info-box tip">
+            <strong>From here on: full dataset</strong>
+            <p>Labs 3–5 used chromosome 11-filtered reads to keep interactive runtimes short. Starting with this lab, we switch to the <strong>complete GSE136366 dataset</strong> (all chromosomes, ~20–40 M reads per sample). nf-core/rnaseq manages its own SLURM job scheduling, so the full dataset runs efficiently without manual intervention — just submit one batch job and wait for results.</p>
+        </div>
+
+        <div class="info-box note">
+            <strong>Learning Objectives</strong>
+            <ul>
+                <li>Set up Nextflow and nf-core tools on Ibex</li>
+                <li>Create a properly formatted samplesheet for GSE136366</li>
+                <li>Configure nf-core/rnaseq for the Ibex SLURM cluster</li>
+                <li>Submit the pipeline as a SLURM batch job</li>
+                <li>Monitor pipeline progress and interpret Nextflow logs</li>
+                <li>Inspect the MultiQC report and understand nf-core output structure</li>
+                <li>Locate Salmon quantification files for downstream differential expression analysis</li>
+            </ul>
+        </div>
+
+        <div class="info-box note">
+            <strong>What does nf-core/rnaseq do under the hood?</strong>
+            <p>nf-core/rnaseq is a community-maintained Nextflow workflow that runs the following steps automatically, in order, for every sample:</p>
+            <ol>
+                <li><strong>FastQC</strong> — raw read quality assessment before trimming</li>
+                <li><strong>fastp</strong> — adapter trimming and quality filtering (or Trim Galore)</li>
+                <li><strong>FastQC</strong> — post-trimming quality assessment</li>
+                <li><strong>STAR</strong> — splice-aware alignment to the reference genome (produces BAM files)</li>
+                <li><strong>Salmon</strong> — quantification of transcript-level expression from alignments (<code>star_salmon</code> mode) or directly from reads (pseudo-alignment mode)</li>
+                <li><strong>Picard / SAMtools</strong> — post-alignment processing: duplicate marking, sorting, indexing</li>
+                <li><strong>RSeQC, QualiMap, dupRadar, PreSeq</strong> — alignment-level quality metrics</li>
+                <li><strong>MultiQC</strong> — aggregates all QC reports into a single interactive HTML report</li>
+            </ol>
+            <p>All processes run in containers (Singularity on Ibex), so no manual software installation is needed beyond Nextflow itself.</p>
+        </div>
+
+        <!-- ========================== -->
+        <!-- Part 1: Setup on Ibex      -->
+        <!-- ========================== -->
+        <section id="part1">
+            <h2>Part 1: Setup on Ibex</h2>
+            <p>Connect to Ibex, start an interactive session, and prepare the environment for running Nextflow.</p>
+
+            <div class="step" data-step="1">
+                <h3>Connect to Ibex and start an interactive session</h3>
+                <pre><code># Connect to Ibex login node
+ssh username@ilogin.ibex.kaust.edu.sa
+
+# Start an interactive session for setup tasks
+# (never run heavy jobs directly on the login node)
+srun --pty --time=2:00:00 --mem=8G --cpus-per-task=4 bash</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Load Nextflow and Singularity</h3>
+                <pre><code># Clear any previously loaded modules, then load Nextflow and Singularity
+module purge
+module load nextflow
+module load singularity
+
+# Confirm the versions
+nextflow -version
+singularity --version</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Nextflow version</strong>
+                    <p>nf-core/rnaseq requires Nextflow &ge; 23.04. If the default module version is older, check for a newer one with <code>module avail nextflow</code> and load the latest. Both <code>nextflow</code> and <code>singularity</code> must be loaded — the KAUST profile uses Singularity containers for all pipeline tools.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Create the pipeline working directory</h3>
+                <pre><code># Create a dedicated directory for this pipeline run
+mkdir -p /ibex/user/$USER/workshop/nfcore_rnaseq
+cd /ibex/user/$USER/workshop/nfcore_rnaseq
+
+# Confirm your location
+pwd</code></pre>
+            </div>
+        </section>
+
+        <!-- ================================= -->
+        <!-- Part 2: Create the Samplesheet    -->
+        <!-- ================================= -->
+        <section id="part2">
+            <h2>Part 2: Create the Samplesheet</h2>
+            <p>nf-core/rnaseq takes a CSV samplesheet as its primary input. Each row describes one sample and its FASTQ files. The samplesheet must have exactly these four columns:</p>
+
+            <table class="schedule-table">
+                <tr><th>Column</th><th>Description</th></tr>
+                <tr><td><code>sample</code></td><td>A unique sample name (no spaces)</td></tr>
+                <tr><td><code>fastq_1</code></td><td>Absolute path to the R1 (forward) FASTQ file</td></tr>
+                <tr><td><code>fastq_2</code></td><td>Absolute path to the R2 (reverse) FASTQ file. Leave empty for single-end data.</td></tr>
+                <tr><td><code>strandedness</code></td><td>Library strandedness: <code>auto</code>, <code>forward</code>, <code>reverse</code>, or <code>unstranded</code></td></tr>
+            </table>
+
+            <div class="info-box note">
+                <strong>Strandedness options explained</strong>
+                <ul>
+                    <li><code>auto</code> — nf-core/rnaseq will detect strandedness automatically using Salmon. Recommended when unsure.</li>
+                    <li><code>forward</code> — Use for stranded libraries where read 1 is in the same orientation as the transcript (e.g., Illumina TruSeq Stranded mRNA, dUTP method, ligation-based kits).</li>
+                    <li><code>reverse</code> — Use for stranded libraries where read 1 is reverse-complementary to the transcript.</li>
+                    <li><code>unstranded</code> — Use for non-stranded protocols (e.g., standard poly-A capture without strand preservation).</li>
+                </ul>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Example samplesheet structure</h3>
+                <p>Below is an example showing two samples from GSE136366. Replace <code>USER</code> with your Ibex username:</p>
+                <pre><code>sample,fastq_1,fastq_2,strandedness
+SRR10009250,/ibex/user/YOUR_USERNAME/workshop/raw_data/SRR10009250_1.fastq.gz,/ibex/user/YOUR_USERNAME/workshop/raw_data/SRR10009250_2.fastq.gz,auto
+SRR10009251,/ibex/user/YOUR_USERNAME/workshop/raw_data/SRR10009251_1.fastq.gz,/ibex/user/YOUR_USERNAME/workshop/raw_data/SRR10009251_2.fastq.gz,auto</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Generate the samplesheet automatically with a bash script</h3>
+                <p>Rather than typing each row manually, use this script to generate the samplesheet from the accession list file you created in Lab 2:</p>
+                <pre><code>cd /ibex/user/$USER/workshop/nfcore_rnaseq
+
+RAWDIR="/ibex/user/$USER/workshop/raw_data"
+
+# Write the CSV header
+echo "sample,fastq_1,fastq_2,strandedness" > samplesheet.csv
+
+# Loop over each SRR accession and append a row
+while read srr; do
+    echo "${srr},${RAWDIR}/${srr}_1.fastq.gz,${RAWDIR}/${srr}_2.fastq.gz,auto"
+done < $RAWDIR/SRR_Acc_List.txt >> samplesheet.csv
+
+# Review the generated samplesheet
+cat samplesheet.csv</code></pre>
+            </div>
+        </section>
+
+        <!-- ============================================== -->
+        <!-- Part 3: KAUST Profile                        -->
+        <!-- ============================================== -->
+        <section id="part3">
+            <h2>Part 3: The KAUST Profile</h2>
+            <p>Instead of writing a manual <code>nextflow.config</code>, we use the pre-built KAUST institutional profile by passing <code>-profile kaust</code> to Nextflow. This single flag activates a configuration file maintained by the KAUST Bioinformatics Platform that handles all cluster-specific settings automatically.</p>
+
+            <div class="info-box note">
+                <strong>What <code>-profile kaust</code> configures automatically</strong>
+                <table class="schedule-table">
+                    <tr><th>Setting</th><th>Value</th><th>Meaning</th></tr>
+                    <tr><td>Job scheduler</td><td>SLURM</td><td>Each pipeline process is submitted as a SLURM job to the <code>batch</code> partition on Ibex</td></tr>
+                    <tr><td>Container runtime</td><td>Singularity</td><td>All tools run inside Singularity containers — no manual <code>module load</code> needed per process</td></tr>
+                    <tr><td>Container library</td><td>Central shared library</td><td>Pre-downloaded images shared across all users; new images go to your personal cache</td></tr>
+                    <tr><td>Resource limits</td><td>Ibex-tuned defaults</td><td>Per-process CPU, memory, and time limits sized for Ibex compute nodes</td></tr>
+                    <tr><td>Reference genomes</td><td><code>--genome GRCh38.p14</code></td><td>Resolves FASTA, GTF, STAR index, and Salmon index from paths already on Ibex — no download needed</td></tr>
+                </table>
+            </div>
+
+            <div class="info-box tip">
+                <strong>Using the KAUST genome registry</strong>
+                <p>The KAUST profile includes a genome registry with reference files for common organisms already available on Ibex. For human data, pass <code>--genome GRCh38.p14</code> — this resolves the reference genome FASTA, GTF annotation, and pre-built STAR/Salmon indexes from shared paths on Ibex. You do not need to download or specify reference files manually.</p>
+                <p>The KAUST profile also includes a dedicated <code>rnaseq</code> sub-profile with tuned defaults for the nf-core/rnaseq pipeline specifically.</p>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- Part 4: Run nf-core/rnaseq     -->
+        <!-- ============================== -->
+        <section id="part4">
+            <h2>Part 4: Run nf-core/rnaseq</h2>
+            <p>With the samplesheet and configuration in place, you are ready to launch the pipeline.</p>
+
+            <div class="step" data-step="1">
+                <h3>Full pipeline run command</h3>
+                <pre><code>cd /ibex/user/$USER/workshop/nfcore_rnaseq
+
+nextflow run nf-core/rnaseq \
+    --input samplesheet.csv \
+    --outdir results \
+    --genome GRCh38.p14 \
+    --aligner star_salmon \
+    --pseudo_aligner salmon \
+    --trimmer fastp \
+    -profile kaust \
+    -resume</code></pre>
+            </div>
+
+            <div class="info-box note">
+                <strong>Key parameter reference</strong>
+                <table class="schedule-table">
+                    <tr><th>Parameter</th><th>Value used</th><th>Description</th></tr>
+                    <tr><td><code>--input</code></td><td><code>samplesheet.csv</code></td><td>Path to the CSV samplesheet you created</td></tr>
+                    <tr><td><code>--outdir</code></td><td><code>results</code></td><td>Directory where all output files will be written</td></tr>
+                    <tr><td><code>--genome</code></td><td><code>GRCh38.p14</code></td><td>Reference genome key from the KAUST genome registry — resolves FASTA, GTF, and pre-built indexes automatically</td></tr>
+                    <tr><td><code>--aligner</code></td><td><code>star_salmon</code></td><td>Align with STAR, then quantify with Salmon in alignment-based mode</td></tr>
+                    <tr><td><code>--pseudo_aligner</code></td><td><code>salmon</code></td><td>Also run Salmon in pseudo-alignment mode directly from reads</td></tr>
+                    <tr><td><code>--trimmer</code></td><td><code>fastp</code></td><td>Use fastp for adapter trimming (alternative: <code>trimgalore</code>)</td></tr>
+                    <tr><td><code>-profile</code></td><td><code>kaust</code></td><td>Activates the KAUST institutional config: SLURM scheduler, Singularity containers, shared image library, and Ibex resource defaults</td></tr>
+                    <tr><td><code>-resume</code></td><td>&mdash;</td><td>Resume a previous run from where it left off (uses Nextflow cache)</td></tr>
+                </table>
+            </div>
+
+            <div class="info-box note">
+                <strong>The <code>-resume</code> flag and Nextflow caching</strong>
+                <p>Nextflow caches the output of every successfully completed process in a hidden <code>work/</code> directory. If the pipeline fails or you add new samples, running with <code>-resume</code> skips all already-completed steps and only re-runs what is needed. This can save hours of compute time. Cache entries are invalidated automatically when inputs or parameters change.</p>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Submit the pipeline as a SLURM batch job (recommended)</h3>
+                <p>For runs that will take several hours, submit the Nextflow head process itself as a SLURM job. Nextflow will then submit all sub-jobs to SLURM automatically from within that job. copy the following into a new file <code>run_rnaseq.sh</code></p>
+                <pre><code>#!/bin/bash
+#SBATCH --job-name=nfcore_rnaseq
+#SBATCH --ntasks=1
+#SBATCH --cpus-per-task=2
+#SBATCH --mem=8G
+#SBATCH --time=24:00:00
+#SBATCH --partition=batch
+#SBATCH --output=nextflow_%j.log
+#SBATCH --error=nextflow_%j.err
+#SBATCH --mail-type=END,FAIL
+#SBATCH --mail-user=your.email@kaust.edu.sa
+
+cd /ibex/user/$USER/workshop/nfcore_rnaseq
+
+module purge
+module load nextflow
+module load singularity
+
+export NXF_SINGULARITY_CACHEDIR=/ibex/user/$USER/singularity_cache
+
+nextflow run nf-core/rnaseq \
+    --input samplesheet.csv \
+    --outdir results \
+    --genome GRCh38.p14 \
+    --aligner star_salmon \
+    --pseudo_aligner salmon \
+    --trimmer fastp \
+    -profile kaust \
+    -resume
+
+# Submit the script
+sbatch run_rnaseq.sh
+
+# Check job status
+squeue -u $USER</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Head job resource requirements</strong>
+                    <p>The Nextflow head job itself only needs 2 CPUs and 8 GB of memory — it just manages job submission and monitors progress. All actual computation happens in the sub-jobs Nextflow submits to SLURM. Keep the head job running for the full expected runtime (24 hours is safe).</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================== -->
+        <!-- Part 5: Monitor Pipeline Progress  -->
+        <!-- ================================== -->
+        <section id="part5">
+            <h2>Part 5: Monitor Pipeline Progress</h2>
+
+            <div class="step" data-step="1">
+                <h3>Watch the Nextflow log in real time</h3>
+                <pre><code># If running interactively, Nextflow writes to stdout and .nextflow.log
+# If submitted via sbatch, tail the log file:
+tail -f nextflow_*.log
+
+# Also watch the Nextflow-specific log
+tail -f .nextflow.log</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Monitor SLURM jobs submitted by Nextflow</h3>
+                <pre><code># List all your running and pending jobs
+squeue -u $USER
+
+# More detail (job name, state, time used, node)
+squeue -u $USER -o "%.18i %.30j %.8T %.10M %.6D %R"
+
+# Watch the queue refreshing every 5 seconds
+watch -n 5 squeue -u $USER</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Understanding the Nextflow progress output</h3>
+                <p>A typical Nextflow run looks like this in the log:</p>
+                <pre><code>executor >  slurm (42)
+[5e/3f2a1b] NFCORE_RNASEQ:RNASEQ:FASTQC_UMITOOLS_TRIMGALORE:FASTQC (SRR10009250) [100%] 6 of 6 ✔
+[a1/88cd2f] NFCORE_RNASEQ:RNASEQ:FASTP (SRR10009250)                              [100%] 6 of 6 ✔
+[b3/12ef45] NFCORE_RNASEQ:RNASEQ:ALIGN_STAR:STAR_ALIGN (SRR10009250)              [ 83%] 5 of 6
+[--/------] NFCORE_RNASEQ:RNASEQ:QUANTIFY_STAR_SALMON:SALMON_QUANT               -
+...</code></pre>
+                <div class="info-box note">
+                    <strong>Reading Nextflow progress lines</strong>
+                    <ul>
+                        <li>The hex code (e.g., <code>5e/3f2a1b</code>) is the work directory hash for that process instance.</li>
+                        <li><code>100%  6 of 6 ✔</code> — all 6 samples completed successfully for this step.</li>
+                        <li><code>83%  5 of 6</code> — 5 samples done, 1 still running.</li>
+                        <li><code>-</code> — step has not started yet (waiting for upstream steps to finish).</li>
+                        <li>A red <code>✗</code> indicates a failed process.</li>
+                    </ul>
+                </div>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>What to do if a step fails</h3>
+                <pre><code># Step 1: Find the work directory of the failed process from the log
+# The hash is shown in the progress line, e.g. [b3/12ef45]
+ls work/b3/12ef45*/
+
+# Step 2: Read the error file
+cat work/b3/12ef45*/.command.err
+
+# Step 3: Read the full command that was run
+cat work/b3/12ef45*/.command.sh
+
+# Step 4: Read stdout output
+cat work/b3/12ef45*/.command.out
+
+# After fixing the issue, re-run with -resume to continue from where it stopped
+nextflow run nf-core/rnaseq \
+    --input samplesheet.csv \
+    --outdir results \
+    --genome GRCh38.p14 \
+    --aligner star_salmon \
+    -profile kaust \
+    -resume</code></pre>
+            </div>
+
+            <div class="info-box warning">
+                <strong>Common Nextflow errors on HPC clusters</strong>
+                <ul>
+                    <li><strong>Exit status 137 (OOM)</strong> — The process ran out of memory. The KAUST profile sets process-level limits automatically, but you can override them by creating a local <code>nextflow.config</code> with a <code>withName</code> block and passing <code>-c nextflow.config</code> alongside <code>-profile kaust</code>.</li>
+                    <li><strong>Exit status 140 (walltime)</strong> — The job exceeded its time limit. Override the time limit in a local config as above.</li>
+                    <li><strong>Singularity: Failed to create image</strong> — The <code>NXF_SINGULARITY_CACHEDIR</code> is not set or the target filesystem is full. Check available space with <code>df -h /ibex/user/$USER</code>.</li>
+                    <li><strong>WARN: Task was cached but the cached output is missing</strong> — Work directory was cleaned or moved. Remove the <code>-resume</code> flag to re-run from scratch, or restore the deleted work directory.</li>
+                    <li><strong>Cannot stage input file</strong> — A FASTQ file listed in the samplesheet does not exist. Double-check all paths with <code>ls</code>.</li>
+                    <li><strong>Process killed (SIGKILL)</strong> — Usually OOM or disk quota exceeded. Check <code>df -h</code> and <code>quota -s</code>.</li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ============================== -->
+        <!-- Part 6: Inspect Outputs        -->
+        <!-- ============================== -->
+        <section id="part6">
+            <h2>Part 6: Inspect Pipeline Outputs</h2>
+            <p>Once the pipeline completes, explore the results directory to understand what was produced.</p>
+
+            <div class="step" data-step="1">
+                <h3>Output directory structure</h3>
+                <pre><code># List the top-level output structure
+ls -lh results/
+
+# A successful run produces directories like:
+# results/
+# ├── fastqc/          -- FastQC reports for raw reads
+# ├── fastp/           -- Trimming reports and trimmed FASTQs
+# ├── star_salmon/     -- STAR alignments + Salmon quantification
+# │   ├── SRR10009250/ -- Per-sample BAM files and Salmon output
+# │   ├── SRR10009251/
+# │   ├── ...
+# │   └── salmon/      -- Merged Salmon quant.sf files and count matrices
+# ├── multiqc/         -- Aggregated QC HTML report
+# └── pipeline_info/   -- Nextflow execution report and timeline</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Explore the STAR alignment output</h3>
+                <pre><code># List output for one sample
+ls -lh results/star_salmon/SRR10009250/
+
+# The BAM file contains the genome alignments
+samtools flagstat results/star_salmon/SRR10009250/SRR10009250.Aligned.sortedByCoord.out.bam
+
+# View the alignment log (STAR mapping statistics)
+cat results/star_salmon/SRR10009250/Log.final.out</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Find the Salmon quantification files</h3>
+                <pre><code># Each sample has a quant.sf file with per-transcript TPM values
+ls results/star_salmon/SRR10009250/
+
+# View the quant.sf header and first few lines
+head results/star_salmon/SRR10009250/quant.sf
+
+# The merged count matrix across all samples is here:
+ls results/star_salmon/salmon/
+
+# salmon.merged.gene_counts.tsv  -- raw counts per gene (for DESeq2)
+# salmon.merged.gene_tpm.tsv     -- TPM per gene (for visualization)
+head results/star_salmon/salmon/salmon.merged.gene_counts.tsv | cut -f1-4</code></pre>
+                <div class="info-box note">
+                    <strong>Which file to use for differential expression analysis?</strong>
+                    <p>For downstream DEA with DESeq2 or edgeR, use <strong><code>salmon.merged.gene_counts.tsv</code></strong> (raw integer counts). Do not use TPM or RPKM values as input to count-based statistical models — they have already been normalized in ways that conflict with DESeq2's internal normalization.</p>
+                    <p>You can also import the per-sample <code>quant.sf</code> files directly into R using <code>tximeta</code> or <code>tximport</code>, which is the recommended approach for propagating uncertainty from transcript-level quantification to the gene level.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Open the MultiQC report</h3>
+                <pre><code># The aggregated QC report is here:
+ls -lh results/multiqc/
+
+# To view it on your local machine, copy it using scp:
+# (run this command from your LOCAL terminal, not Ibex)
+scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_rnaseq/results/multiqc/multiqc_report.html ~/Desktop/
+
+# Or use a web browser on Ibex via X11 forwarding (if available):
+# firefox results/multiqc/multiqc_report.html</code></pre>
+            </div>
+
+            <div class="step" data-step="5">
+                <h3>Key sections of the MultiQC report</h3>
+                <p>Open the MultiQC HTML report and review these sections:</p>
+                <table class="schedule-table">
+                    <tr><th>Section</th><th>What to look for</th></tr>
+                    <tr><td>General Statistics</td><td>Overview table: total reads, % aligned, % duplicates, % GC content per sample</td></tr>
+                    <tr><td>FastQC (Raw)</td><td>Per-base quality scores, adapter content before trimming</td></tr>
+                    <tr><td>fastp</td><td>% reads passing filters, adapter trimming rates, insert size distribution</td></tr>
+                    <tr><td>STAR</td><td>Uniquely mapped reads %, multi-mapper %, unmapped reads % — aim for &gt;70% unique mapping</td></tr>
+                    <tr><td>Salmon</td><td>Mapping rate from Salmon pseudo-alignment — should agree with STAR</td></tr>
+                    <tr><td>dupRadar</td><td>Gene-level duplication: low-expression genes with high duplication may indicate over-sequencing or contamination</td></tr>
+                    <tr><td>RSeQC</td><td>Read distribution across genomic features (exons, introns, intergenic)</td></tr>
+                    <tr><td>Picard</td><td>Insert size distribution — should be unimodal for typical poly-A RNA-seq</td></tr>
+                </table>
+            </div>
+
+            <div class="step" data-step="6">
+                <h3>Check the pipeline execution report</h3>
+                <pre><code># Nextflow generates an HTML execution report with resource usage per process
+ls results/pipeline_info/
+
+# Open execution_report_*.html for a visual breakdown of:
+# - Wall time per process
+# - CPU and memory utilization
+# - Total number of tasks executed
+# - Process-level success/failure status
+
+# Copy it locally to open in a browser
+scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_rnaseq/results/pipeline_info/execution_report*.html ~/Desktop/</code></pre>
+            </div>
+        </section>
+
+        <!-- ============ -->
+        <!-- Exercises    -->
+        <!-- ============ -->
+        <section id="exercises">
+            <h2>Exercises</h2>
+
+            <div class="card">
+                <h3>Exercise 1: Mapping Rate</h3>
+                <p>Open the MultiQC report and find the <strong>General Statistics</strong> table. What is the overall STAR unique mapping rate for each sample? Are there any samples with noticeably lower mapping rates? What could cause a low mapping rate in an RNA-seq experiment?</p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 2: Pipeline Process Count</h3>
+                <p>How many individual processes (tasks) did nf-core/rnaseq execute in total? Open the <strong>pipeline execution report</strong> (<code>results/pipeline_info/execution_report_*.html</code>) and find the total task count. Note how many of those were cached if you used <code>-resume</code>.</p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 3: Locate Salmon quant.sf Files</h3>
+                <p>Where are the per-sample Salmon <code>quant.sf</code> output files located in the results directory? Write the full path pattern. How many columns does a <code>quant.sf</code> file have, and what does each column represent?</p>
+                <p><em>Hint: Use <code>ls results/star_salmon/SRR*/</code> and <code>head</code> to inspect one file.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 4: Strandedness in the Samplesheet</h3>
+                <p>Your collaborator informs you that the GSE136366 libraries were prepared with the Illumina TruSeq Stranded mRNA kit, which produces reverse-stranded libraries. What value would you set for the <code>strandedness</code> column in your samplesheet? How would you update the samplesheet CSV file to reflect this?</p>
+                <p><em>Hint: Use <code>sed</code> or a text editor to replace <code>auto</code> with the correct strandedness value in all rows.</em></p>
+            </div>
+        </section>
+
+        <!-- ========= -->
+        <!-- Summary   -->
+        <!-- ========= -->
+        <section id="summary">
+            <h2>Summary</h2>
+            <p>In this lab, you have:</p>
+            <ul>
+                <li>Loaded Nextflow with <code>module load nextflow</code> and installed nf-core tools on Ibex</li>
+                <li>Configured a Singularity cache directory in scratch space</li>
+                <li>Created a valid CSV samplesheet for all GSE136366 samples</li>
+                <li>Used <code>-profile kaust</code> to activate the KAUST institutional config (SLURM, Singularity, shared genomes)</li>
+                <li>Submitted nf-core/rnaseq as a SLURM batch job using <code>sbatch</code> with <code>--genome GRCh38.p14</code></li>
+                <li>Monitored pipeline progress with <code>tail -f</code> and <code>squeue</code></li>
+                <li>Navigated the output directory and located STAR BAMs, Salmon quant files, and the MultiQC report</li>
+                <li>Understood how to diagnose and recover from pipeline failures using <code>-resume</code> and work directory inspection</li>
+            </ul>
+            <p>The merged gene count matrix at <code>results/star_salmon/salmon/salmon.merged.gene_counts.tsv</code> is the primary input for the next lab.</p>
+
+            <div class="info-box tip">
+                <strong>Next steps</strong>
+                <p>The Salmon count matrix produced by this pipeline will be used directly in the differential expression analysis lab. You do not need to run any additional quantification steps — nf-core/rnaseq has already done it all.</p>
+            </div>
+
+            <p>
+                <strong>Previous:</strong> <a href="lab-quantification.html">Lab 5: Quantification</a>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                <strong>Next:</strong> <a href="lab-differential-expression.html">Lab 7: Differential Expression Analysis</a>
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        // Add copy buttons to all code blocks
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('pre');
+            codeBlocks.forEach(function(pre) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(pre);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', function() {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.textContent : pre.textContent;
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = 'Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>

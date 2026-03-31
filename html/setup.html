@@ -38,63 +38,45 @@
             </ul>
         </section>
 
+        <!-- ================================================ -->
+        <!-- Connecting to Ibex                               -->
+        <!-- ================================================ -->
         <section>
-            <h2>Software &amp; Tools on Personal Computer</h2>
-            <h3>Command-line Tools (via conda/mamba)</h3>
-            <div class="info-box tip">
-                <strong>Tip</strong>
-                We recommend installing tools via <a href="https://mamba.readthedocs.io/en/latest/" target="_blank" rel="noopener">mamba</a> (a faster drop-in replacement for conda).
-            </div>
+            <h2>Connecting to Ibex</h2>
             <div class="code-container">
-                <pre><code># Create a dedicated conda environment
-mamba create -n rnaseq -c bioconda -c conda-forge \
-    fastqc fastp trimmomatic multiqc \
-    star hisat2 samtools \
-    subread salmon kallisto \
-    rseqc qualimap sra-tools \
-    -y
-
-conda activate rnaseq</code></pre>
+                <pre><code>ssh your_username@ilogin.ibex.kaust.edu.sa</code></pre>
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
 
-            <h3>R Packages (Bioconductor)</h3>
+            <h2>Bioinformatics Tools — Use the Module System</h2>
+            <p>All bioinformatics tools used in the labs (FastQC, fastp, STAR, Salmon, samtools, MultiQC, Nextflow, etc.) are pre-installed on Ibex. Load them on demand — no local installation needed.</p>
             <div class="code-container">
-                <pre><code>if (!require("BiocManager", quietly = TRUE))
-    install.packages("BiocManager")
+                <pre><code># Search for a tool
+module avail toolName
 
-BiocManager::install(c(
-    "DESeq2",
-    "edgeR",
-    "tximport",
-    "tximeta",
-    "clusterProfiler",
-    "org.Hs.eg.db",
-    "fgsea",
-    "pheatmap",
-    "ComplexHeatmap",
-    "EnhancedVolcano",
-    "apeglm"
-))
+# Load a tool
+module load toolName
 
-install.packages(c("ggplot2", "dplyr", "tidyr", "ggrepel"))</code></pre>
+# Example
+module avail salmon
+module load salmon</code></pre>
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
         </section>
 
         <!-- ================================================ -->
-        <!-- Miniconda + Python environment on Ibex           -->
+        <!-- Conda environment on Ibex                        -->
         <!-- ================================================ -->
         <section>
-            <h2>Python Environment on Ibex (for Jupyter Notebooks)</h2>
-            <p>Labs 5 and 7 include optional Python Jupyter notebooks for exploratory analysis and visualization. The steps below install <strong>Miniconda</strong> and <strong>mamba</strong> on Ibex, then create a dedicated <code>rnaseq-python</code> environment with all required packages.</p>
+            <h2>Conda Environment on Ibex</h2>
+            <p>A single <code>rnaseq</code> conda environment provides JupyterLab, all Python packages used in the notebooks, and all R/Bioconductor packages used in the R labs. Follow the steps below once before the course starts.</p>
 
             <div class="info-box note">
                 <strong>Run these commands on Ibex, not on your local machine.</strong>
-                <p>Connect to Ibex first (<code>ssh username@ilogin.ibex.kaust.edu.sa</code>), then follow the steps below in your home directory.</p>
+                <p>Connect to Ibex first, then follow the steps below in your home directory.</p>
             </div>
 
-            <h3>Step 1 — Install Miniconda</h3>
+            <h3>Step 1 — Install Miniconda - Skip if conda is already installed</h3>
             <div class="code-container">
                 <pre><code># Download the Miniconda installer for Linux (64-bit)
 wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
@@ -118,7 +100,7 @@ conda --version</code></pre>
             </div>
 
             <h3>Step 2 — Install mamba</h3>
-            <p>Mamba is a faster drop-in replacement for the <code>conda</code> solver. Install it once into the base environment:</p>
+            <p>Mamba is a faster drop-in replacement for the <code>conda</code> solver:</p>
             <div class="code-container">
                 <pre><code>conda install -n base -c conda-forge mamba -y
 
@@ -127,10 +109,10 @@ mamba --version</code></pre>
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
 
-            <h3>Step 3 — Create the <code>rnaseq-python</code> environment</h3>
-            <p>This environment includes JupyterLab and all Python packages used in the course notebooks (data handling, PCA, plotting, and differential expression analysis):</p>
+            <h3>Step 3 — Create the <code>rnaseq</code> environment</h3>
+            <p>This single environment includes JupyterLab, Python analysis packages, and R/Bioconductor packages for all course labs:</p>
             <div class="code-container">
-                <pre><code>mamba create -n rnaseq-python -c conda-forge -c bioconda \
+                <pre><code>mamba create -n rnaseq -c conda-forge -c bioconda \
     python=3.11 \
     jupyterlab \
     ipykernel \
@@ -142,6 +124,23 @@ mamba --version</code></pre>
     scipy \
     pydeseq2 \
     adjusttext \
+    r-base \
+    bioconductor-deseq2 \
+    bioconductor-edger \
+    bioconductor-tximport \
+    bioconductor-tximeta \
+    bioconductor-genomicfeatures \
+    bioconductor-clusterprofiler \
+    bioconductor-org.hs.eg.db \
+    bioconductor-fgsea \
+    bioconductor-complexheatmap \
+    bioconductor-enhancedvolcano \
+    bioconductor-apeglm \
+    r-pheatmap \
+    r-ggplot2 \
+    r-dplyr \
+    r-tidyr \
+    r-ggrepel \
     -y</code></pre>
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
@@ -156,41 +155,37 @@ mamba --version</code></pre>
                         </tr>
                     </thead>
                     <tbody>
-                        <tr><td style="padding:0.3rem 0.8rem;"><code>jupyterlab</code> / <code>ipykernel</code></td><td style="padding:0.3rem 0.8rem;">Interactive notebooks</td></tr>
-                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>pandas</code> / <code>numpy</code></td><td style="padding:0.3rem 0.8rem;">Reading quant.sf files, matrix operations</td></tr>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>jupyterlab</code> / <code>ipykernel</code></td><td style="padding:0.3rem 0.8rem;">Interactive Python notebooks (Labs 5, 7)</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>pandas</code> / <code>numpy</code></td><td style="padding:0.3rem 0.8rem;">Loading quant.sf files, matrix operations</td></tr>
                         <tr><td style="padding:0.3rem 0.8rem;"><code>matplotlib</code> / <code>seaborn</code></td><td style="padding:0.3rem 0.8rem;">PCA plots, heatmaps, volcano plots</td></tr>
-                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>scikit-learn</code></td><td style="padding:0.3rem 0.8rem;">PCA decomposition</td></tr>
-                        <tr><td style="padding:0.3rem 0.8rem;"><code>scipy</code></td><td style="padding:0.3rem 0.8rem;">Pairwise distances for sample-distance heatmap</td></tr>
-                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>pydeseq2</code></td><td style="padding:0.3rem 0.8rem;">Differential expression analysis in Python (Lab 7)</td></tr>
-                        <tr><td style="padding:0.3rem 0.8rem;"><code>adjustText</code></td><td style="padding:0.3rem 0.8rem;">Non-overlapping labels in volcano plots</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>scikit-learn</code> / <code>scipy</code></td><td style="padding:0.3rem 0.8rem;">PCA decomposition, pairwise distances</td></tr>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>pydeseq2</code></td><td style="padding:0.3rem 0.8rem;">Differential expression in Python</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>adjustText</code></td><td style="padding:0.3rem 0.8rem;">Non-overlapping labels in volcano plots</td></tr>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>r-base</code></td><td style="padding:0.3rem 0.8rem;">R interpreter</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>bioconductor-deseq2</code> / <code>bioconductor-edger</code></td><td style="padding:0.3rem 0.8rem;">Differential expression analysis (Lab 7)</td></tr>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>bioconductor-tximport</code> / <code>bioconductor-tximeta</code></td><td style="padding:0.3rem 0.8rem;">Import Salmon output into R (Labs 5, 7)</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>bioconductor-genomicfeatures</code></td><td style="padding:0.3rem 0.8rem;">Build tx2gene mapping from GTF</td></tr>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>bioconductor-clusterprofiler</code> / <code>bioconductor-fgsea</code></td><td style="padding:0.3rem 0.8rem;">GO and pathway enrichment, GSEA (Lab 8)</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>bioconductor-complexheatmap</code> / <code>r-pheatmap</code></td><td style="padding:0.3rem 0.8rem;">Heatmap visualisation</td></tr>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>bioconductor-enhancedvolcano</code></td><td style="padding:0.3rem 0.8rem;">Volcano plots (Lab 7)</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>bioconductor-apeglm</code></td><td style="padding:0.3rem 0.8rem;">Log fold-change shrinkage (Lab 7)</td></tr>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>r-ggplot2</code> / <code>r-dplyr</code> / <code>r-tidyr</code> / <code>r-ggrepel</code></td><td style="padding:0.3rem 0.8rem;">General-purpose R plotting and data wrangling</td></tr>
                     </tbody>
                 </table>
             </div>
 
             <h3>Step 4 — Activate and verify</h3>
             <div class="code-container">
-                <pre><code>conda activate rnaseq-python
+                <pre><code>conda activate rnaseq
 
-# Check that key packages are installed and importable
-python -c "import pandas, numpy, matplotlib, seaborn, sklearn, pydeseq2; print('All packages OK')"
+# Verify Python packages
+python -c "import pandas, numpy, matplotlib, seaborn, sklearn, pydeseq2; print('Python packages OK')"
 
-# Confirm Jupyter Lab is available
-jupyter lab --version</code></pre>
-                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-        </section>
+# Verify Jupyter
+jupyter lab --version
 
-        <section>
-            <h2>Connecting to Ibex</h2>
-            <div class="code-container">
-                <pre><code># Connect to Ibex via SSH
-ssh your_username@ibex.kaust.edu.sa</code></pre>
-                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-            <h2>Use pre-installed software and tools</h2>
-            <div class="code-container">
-                <pre><code># Search for a tool and load if found
-module avail toolName<br/>module load toolName</code></pre>
+# Verify R packages
+Rscript -e "library(DESeq2); library(tximport); library(clusterProfiler); cat('R packages OK\n')"</code></pre>
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
         </section>
@@ -198,7 +193,7 @@ module avail toolName<br/>module load toolName</code></pre>
     </main>
 
     <footer>
-        <p>RNA-seq Comprehensive Course — KAUST Bioinformatics Platform</p>
+        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
     </footer>
 
     <script>
