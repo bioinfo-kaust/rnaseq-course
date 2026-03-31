@@ -197,7 +197,7 @@ ls -la</code></pre>
 prefetch GSE136366
 
 # Convert each downloaded .sra file to paired FASTQ
-for sra in GSE136366/**/*.sra; do
+for sra in ./*/*.sra; do
     echo "Converting $sra ..."
     fasterq-dump --split-files --threads 4 "$sra"
 done</code></pre>
