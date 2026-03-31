@@ -36,6 +36,42 @@
                 <li>A laptop with a terminal application (macOS Terminal, Linux shell, or Windows with WSL2)</li>
                 <li>Basic familiarity with the Linux command line</li>
             </ul>
+
+            <h2>Before You Begin — Check Your Ibex Access</h2>
+            <p>Complete both checks below before the course starts. If either fails, follow the instructions to resolve it in advance.</p>
+
+            <h3>1. Verify you can submit jobs</h3>
+            <p>Log in to Ibex and run a quick test job. If it queues and completes, your account has compute access.</p>
+            <div class="code-container">
+                <pre><code>ssh your_username@ilogin.ibex.kaust.edu.sa
+
+# Submit a short test job
+sbatch --wrap="hostname" --time=00:01:00 --mem=1G
+
+# Check the output (replace JOBID with the number printed above)
+cat slurm-JOBID.out</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <div class="info-box warning">
+                <strong>No compute access?</strong>
+                <p>If you receive a permission error or your jobs are rejected, you need to request access before the course. Submit a request through the <a href="https://my.ibex.kaust.edu.sa/v2/teams" target="_blank" rel="noopener">Ibex HPC portal</a>. Ask your PI to approve the request.</p>
+            </div>
+
+            <h3>2. Check available disk space</h3>
+            <p>The course dataset and conda environment require at least <strong>100 GB</strong> of free space in your Ibex home directory.</p>
+            <div class="code-container">
+                <pre><code># Check your current usage and quota on /ibex/user
+quota -s /ibex/user/$USER
+
+# Or check with df
+df -h /ibex/user/$USER</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+            <div class="info-box warning">
+                <strong>Less than 200 GB free?</strong>
+                <p>Free up space by removing unused files, old conda environments, or temporary outputs before the course:</p>
+                <pre><code># List your largest directories
+du -sh /ibex/user/$USER/* | sort -rh | head -20</div>
         </section>
 
         <!-- ================================================ -->
@@ -190,6 +226,159 @@ Rscript -e "library(DESeq2); library(tximport); library(clusterProfiler); cat('R
             </div>
         </section>
 
+        <section>
+            <h2>Quick Reference: Daily Commands</h2>
+            <pre><code># Connect to Ibex
+ssh username@ilogin.ibex.kaust.edu.sa
+
+# Start interactive session
+srun --pty --time=4:00:00 --mem=8G --cpus-per-task=4 bash
+
+# Navigate to workspace
+cd /ibex/user/$USER/workshop</code></pre>
+        </section>
+
+        <section>
+            <details>
+                <summary><h2 style="display: inline; cursor: pointer;">Linux Command Line Cheatsheet</h2></summary>
+
+                <h3>Navigation</h3>
+                <pre><code># Print current directory
+pwd
+
+# List files and directories
+ls              # Basic listing
+ls -l           # Detailed listing (permissions, size, date)
+ls -la          # Include hidden files (starting with .)
+ls -lh          # Human-readable file sizes
+
+# Change directory
+cd /path/to/dir     # Go to specific directory
+cd ~                # Go to home directory
+cd ..               # Go up one level
+cd -                # Go to previous directory</code></pre>
+
+                <h3>File Operations</h3>
+                <pre><code># Create files and directories
+mkdir mydir             # Create directory
+mkdir -p dir1/dir2      # Create nested directories
+touch file.txt          # Create empty file
+
+# Copy files
+cp file.txt backup.txt          # Copy file
+cp -r mydir/ mydir_backup/      # Copy directory recursively
+
+# Move/rename files
+mv oldname.txt newname.txt      # Rename file
+mv file.txt /path/to/dest/      # Move file
+
+# Remove files
+rm file.txt             # Delete file
+rm -r mydir/            # Delete directory recursively
+rm -i file.txt          # Ask before deleting</code></pre>
+
+                <h3>Viewing Files</h3>
+                <pre><code># Display file contents
+cat file.txt            # Show entire file
+head file.txt           # Show first 10 lines
+head -n 20 file.txt     # Show first 20 lines
+tail file.txt           # Show last 10 lines
+tail -f logfile.txt     # Follow file updates in real-time
+less file.txt           # View with scrolling (q to quit)
+
+# View compressed files
+gzip -dc file.gz         # View gzipped file (works on macOS and Linux)
+zless file.gz           # View gzipped file with scrolling</code></pre>
+
+                <h3>File Information</h3>
+                <pre><code># Count lines, words, characters
+wc file.txt             # Lines, words, characters
+wc -l file.txt          # Lines only
+
+# File size
+du -h file.txt          # Size of file
+du -sh mydir/           # Total size of directory
+
+# Disk space
+df -h                   # Disk usage summary</code></pre>
+
+                <h3>Searching</h3>
+                <pre><code># Find files
+find . -name "*.fastq"          # Find by name pattern
+find . -type f -size +100M      # Find files larger than 100MB
+
+# Search file contents
+grep "pattern" file.txt         # Lines containing pattern
+grep -r "pattern" mydir/        # Search recursively in directory
+grep -i "pattern" file.txt      # Case-insensitive search
+grep -c "pattern" file.txt      # Count matching lines</code></pre>
+
+                <h3>Pipes and Redirection</h3>
+                <pre><code># Redirect output
+command > file.txt      # Write output to file (overwrite)
+command >> file.txt     # Append output to file
+command 2> error.txt    # Redirect errors to file
+
+# Pipes (send output to another command)
+cat file.txt | head             # First 10 lines
+cat file.txt | grep "pattern"   # Filter lines
+cat file.txt | wc -l            # Count lines
+cat file.txt | sort | uniq      # Sort and remove duplicates</code></pre>
+
+                <h3>Compression</h3>
+                <pre><code># Gzip
+gzip file.txt           # Compress (creates file.txt.gz)
+gunzip file.txt.gz      # Decompress
+
+# Tar archives
+tar -cvf archive.tar dir/       # Create archive
+tar -xvf archive.tar            # Extract archive
+tar -czvf archive.tar.gz dir/   # Create compressed archive
+tar -xzvf archive.tar.gz        # Extract compressed archive</code></pre>
+
+                <h3>Permissions</h3>
+                <pre><code># View permissions
+ls -l file.txt          # Shows -rw-r--r-- format
+
+# Change permissions
+chmod +x script.sh      # Make executable
+chmod 755 script.sh     # rwx for owner, rx for others
+
+# Change ownership
+chown user:group file.txt</code></pre>
+
+                <h3>Process Management</h3>
+                <pre><code># View running processes
+ps                      # Your processes
+ps aux                  # All processes
+top                     # Interactive process viewer (q to quit)
+htop                    # Better interactive viewer (if installed)
+
+# Control processes
+command &               # Run in background
+Ctrl+C                  # Stop current process
+Ctrl+Z                  # Suspend current process
+bg                      # Resume suspended process in background
+kill PID                # Terminate process by ID
+killall processname     # Terminate by name</code></pre>
+
+                <h3>Useful Shortcuts</h3>
+                <pre><code># Keyboard shortcuts
+Ctrl+C          # Cancel current command
+Ctrl+L          # Clear screen
+Ctrl+A          # Move cursor to start of line
+Ctrl+E          # Move cursor to end of line
+Ctrl+R          # Search command history
+Tab             # Auto-complete file/directory names
+Up/Down         # Navigate command history
+
+# History
+history                 # Show command history
+!123                    # Run command #123 from history
+!!                      # Repeat last command</code></pre>
+
+            </details>
+        </section>
     </main>
 
     <footer>
