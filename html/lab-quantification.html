@@ -22,6 +22,14 @@
 
     <main>
         <h1>Lab 5: Quantification with Salmon &amp; Exploratory Analysis</h1>
+
+        <div class="lab-nav">
+            <a href="#part1"><span class="part-num">Part 1</span><span class="part-label">Setup on Ibex</span></a>
+            <a href="#part2"><span class="part-num">Part 2</span><span class="part-label">Salmon Index</span></a>
+            <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">Quantify with Salmon</span></a>
+            <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">Exploratory Analysis (Python)</span></a>
+            <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">Exploratory Analysis (R)</span></a>
+        </div>
         <p>In this lab you will quantify gene expression for all GSE136366 samples using <strong>Salmon</strong> quasi-mapping against the <strong>chromosome 11 transcriptome</strong>, then import the results into R, apply variance-stabilising transformation (VST), and produce a PCA plot and sample-distance heatmap to assess sample quality.</p>
 
         <div class="info-box tip">
@@ -228,194 +236,253 @@ done</code></pre>
         </section>
 
         <!-- ============================================= -->
-        <!-- Part 4: Exploratory Analysis in R            -->
+        <!-- Part 4: Exploratory Analysis in Python      -->
         <!-- ============================================= -->
         <section id="part4">
-            <h2>Part 4: Exploratory Analysis in R</h2>
-            <p>With quantification complete, we import the Salmon results into R, summarise them at the gene level, apply a variance-stabilising transformation, and visualise sample relationships.</p>
+            <h2>Part 4: Exploratory Analysis in Python (Jupyter Notebook)</h2>
+            <p>The same exploratory analysis from Part 4 is available as a Python Jupyter notebook at <code>notebooks/lab5_exploratory_analysis.ipynb</code> in the course repository. This part explains how to run it interactively on Ibex via SSH tunneling.</p>
+
+            <div class="info-box note">
+                <strong>What the notebook covers</strong>
+                <ul>
+                    <li>Parsing the chr11 GTF to build a transcript-to-gene mapping</li>
+                    <li>Loading all six Salmon <code>quant.sf</code> files with <strong>pandas</strong></li>
+                    <li>Aggregating transcript-level TPM to gene level</li>
+                    <li>log₂(TPM + 1) normalization (VST equivalent)</li>
+                    <li>PCA plot with <strong>scikit-learn</strong> and <strong>matplotlib</strong></li>
+                    <li>Sample-distance heatmap with <strong>seaborn</strong></li>
+                    <li>Exporting gene-level count and TPM matrices for downstream labs</li>
+                </ul>
+            </div>
 
             <div class="step" data-step="1">
-                <h3>Start an R session on Ibex</h3>
-                <pre><code># Option A: Interactive R in terminal (module already loaded)
-R
-
-# Option B: Use RStudio via Ibex Open OnDemand (OOD)
-# Open a browser and navigate to:  https://ood.ibex.kaust.edu.sa
-# Select "RStudio Server" from the Interactive Apps menu</code></pre>
-                <div class="info-box tip">
-                    <strong>Tip: Set Your Working Directory First</strong>
-                    <p>In your R session, set the working directory to the workshop folder so all file paths are relative:</p>
-                    <pre><code>setwd("/ibex/user/YOUR_USERNAME/workshop")
-# Replace YOUR_USERNAME with your actual Ibex username</code></pre>
-                </div>
+                <h3>Copy the notebook to your workshop directory on Ibex</h3>
+                <p>Upload the notebook from the course repository to your Ibex workshop directory. From your local machine:</p>
+                <pre><code>scp /path/to/course/notebooks/lab5_exploratory_analysis.ipynb \
+    username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/</code></pre>
+                <p>Or clone/pull the course repository directly on Ibex if you have access.</p>
             </div>
 
             <div class="step" data-step="2">
-                <h3>Load required R packages</h3>
-                <pre><code># Load required packages
-library(tximport)
-library(DESeq2)
-library(ggplot2)
-library(pheatmap)
-library(GenomicFeatures)
+                <h3>Start an interactive session on Ibex</h3>
+                <pre><code># Connect to Ibex
+ssh username@ilogin.ibex.kaust.edu.sa
 
-# If any package is not installed, install it first:
-# BiocManager::install(c("tximport", "DESeq2", "GenomicFeatures"))
-# install.packages(c("ggplot2", "pheatmap"))
-
-# Check versions
-packageVersion("tximport")
-packageVersion("DESeq2")</code></pre>
-            </div>
-
-            <div class="step" data-step="3">
-                <h3>Create a transcript-to-gene mapping from the GTF</h3>
-                <p>Salmon quantifies at the <em>transcript</em> level. We need a mapping table to aggregate transcript counts to gene-level counts. <code>GenomicFeatures</code> can build this directly from the GTF file:</p>
-                <pre><code># Build a TxDb object from the GTF annotation
-txdb &lt;- makeTxDbFromGFF("references/chr11/GRCh38.chr11.gtf", format = "gtf")
-
-# Extract the transcript-to-gene mapping
-k &lt;- keys(txdb, keytype = "TXNAME")
-tx2gene &lt;- select(txdb, k, "GENEID", "TXNAME")
-
-# Inspect the mapping table
-head(tx2gene)
-dim(tx2gene)  # should have one row per transcript</code></pre>
-                <div class="info-box note">
-                    <strong>tx2gene Format</strong>
-                    <p>The <code>tx2gene</code> data frame must have two columns: the first contains transcript IDs (matching the <code>Name</code> column in <code>quant.sf</code>) and the second contains gene IDs. <code>tximport</code> uses this table to sum transcript-level estimates up to gene level.</p>
+# Request an interactive compute node
+# Note the node name printed in the prompt (e.g., cn501-13) — you will need it for tunneling
+srun --pty --time=4:00:00 --mem=16G --cpus-per-task=4 bash</code></pre>
+                <div class="info-box tip">
+                    <strong>Note the compute node name</strong>
+                    <p>When your interactive session starts, your prompt changes to show the node name, e.g., <code>[username@cn501-13 ~]$</code>. Write down <code>cn501-13</code> (or whatever node you land on) — you will need it in Step 4 to set up the SSH tunnel.</p>
                 </div>
             </div>
 
+            <div class="step" data-step="3">
+                <h3>Activate the environment and launch Jupyter Lab</h3>
+                <pre><code># Activate the rnaseq-python conda environment (see Setup page)
+conda activate rnaseq-python
+
+# Move to your workshop directory
+cd /ibex/user/$USER/workshop
+
+# Start Jupyter Lab without opening a browser
+# Use a port number between 8000–9999 (pick one unlikely to be in use)
+jupyter lab --no-browser --port=8888 --ip=0.0.0.0</code></pre>
+                <p>Jupyter will print a URL containing a token, like:</p>
+                <pre><code>http://cn501-13:8888/lab?token=abc123def456...</code></pre>
+                <p>Keep this terminal open — Jupyter runs here as long as your interactive session is active.</p>
+            </div>
+
             <div class="step" data-step="4">
-                <h3>Import Salmon counts with tximport</h3>
-                <pre><code># List sample directories created by Salmon
-salmon_dirs &lt;- list.dirs("counts/salmon", full.names = FALSE, recursive = FALSE)
-sample_ids  &lt;- salmon_dirs
-sample_ids  # preview
-
-# Build paths to each quant.sf file
-quant_files &lt;- file.path("counts/salmon", sample_ids, "quant.sf")
-names(quant_files) &lt;- sample_ids
-
-# Verify all files exist before importing
-stopifnot(all(file.exists(quant_files)))
-
-# Import — tximport sums transcript counts to gene level
-txi &lt;- tximport(quant_files, type = "salmon", tx2gene = tx2gene)
-
-# Explore the result
-names(txi)           # components: counts, abundance (TPM), length
-dim(txi$counts)      # rows = genes (chr11 only), columns = 6 samples
-colnames(txi$counts) # should be KO_1_SRR10045016, KO_2_..., WT_1_..., etc.
-head(txi$counts)</code></pre>
-
+                <h3>Open an SSH tunnel from your local machine</h3>
+                <p>Open a <strong>new terminal on your local computer</strong> (do not close the Ibex session) and run:</p>
+                <pre><code># Replace cn501-13 with your actual compute node name
+# Replace username with your Ibex username
+ssh -L 8888:cn501-13:8888 username@ilogin.ibex.kaust.edu.sa</code></pre>
                 <div class="info-box note">
-                    <strong>TPM vs Raw Counts &mdash; Which to Use?</strong>
-                    <p><strong>TPM (Transcripts Per Million)</strong> normalises for transcript length and sequencing depth. It is useful for comparing expression levels <em>within a sample</em> or ranking genes by abundance. However, TPM values are compositional (they always sum to 1 million per sample), so they are not appropriate for differential expression testing.</p>
-                    <p><strong>Raw counts</strong> (estimated read counts from Salmon) retain the variance structure expected by count-based statistical models such as DESeq2 and edgeR. Always use raw counts for differential expression analysis.</p>
-                    <p><code>tximport</code> imports both: <code>txi$abundance</code> = TPM, <code>txi$counts</code> = estimated counts.</p>
+                    <strong>How SSH tunneling works</strong>
+                    <p>This command forwards port <code>8888</code> on your local machine to port <code>8888</code> on the compute node (<code>cn501-13</code>), routing through the Ibex login node. Your browser talks to <code>localhost:8888</code>, which securely proxies to Jupyter running on the compute node.</p>
                 </div>
             </div>
 
             <div class="step" data-step="5">
-                <h3>Create sample metadata (coldata)</h3>
-                <p>Define the experimental conditions for each sample. Adapt the condition labels to the actual GSE136366 design (TDP-43 knockdown vs control):</p>
-                <pre><code># Build a coldata data frame matching the KO/WT naming from the Zenodo files
+                <h3>Open the notebook in your browser</h3>
+                <p>Copy the URL printed by Jupyter in Step 3 and change the hostname to <code>localhost</code>:</p>
+                <pre><code># Paste this in your browser — replace the token with the one from your Jupyter output
+http://localhost:8888/lab?token=abc123def456...</code></pre>
+                <p>Jupyter Lab will open in your browser. Navigate to <code>lab5_exploratory_analysis.ipynb</code> and run the cells from top to bottom with <strong>Shift + Enter</strong>.</p>
+                <div class="info-box tip">
+                    <strong>If the port is already in use</strong>
+                    <p>If port <code>8888</code> is busy, Jupyter will automatically try <code>8889</code>, <code>8890</code>, etc. Check the URL it prints and use the same port number in the <code>ssh -L</code> command and in your browser.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Part 5: Exploratory Analysis in R (collapsed)-->
+        <!-- ============================================= -->
+        <section id="part5">
+            <details>
+                <summary><h2 style="display:inline;">Part 5: Exploratory Analysis in R (click to expand)</h2></summary>
+
+                <p>This part replicates the same exploratory analysis from Part 4 using R and Bioconductor. It uses <strong>tximport</strong> to import Salmon output, <strong>DESeq2</strong> for variance-stabilising transformation (VST), and <strong>ggplot2</strong> / <strong>pheatmap</strong> for visualisation.</p>
+
+                <div class="info-box note">
+                    <strong>Prerequisites</strong>
+                    <p>R and Bioconductor packages must be available on Ibex. See the <a href="setup.html">Setup page</a> for installation instructions. Required packages: <code>tximport</code>, <code>DESeq2</code>, <code>ggplot2</code>, <code>pheatmap</code>, <code>GenomicFeatures</code>.</p>
+                </div>
+
+                <div class="step" data-step="1">
+                    <h3>Start an interactive R session</h3>
+                    <pre><code># Request an interactive session with enough RAM for R
+srun --pty --time=01:00:00 --mem=16G --cpus-per-task=4 bash
+
+# Load the R module
+module load R
+
+# Start R
+R</code></pre>
+                    <div class="info-box tip">
+                        <strong>Tip: RStudio on Ibex Open OnDemand</strong>
+                        <p>You can also run this analysis in RStudio via the Ibex Open OnDemand portal at <code>ood.ibex.kaust.edu.sa</code>. Select <strong>RStudio Server</strong>, request 4 CPUs and 16 GB RAM, then paste each step into the console or open a new R script.</p>
+                    </div>
+                </div>
+
+                <div class="step" data-step="2">
+                    <h3>Load required R packages</h3>
+                    <pre><code>library(tximport)
+library(DESeq2)
+library(GenomicFeatures)
+library(ggplot2)
+library(pheatmap)</code></pre>
+                </div>
+
+                <div class="step" data-step="3">
+                    <h3>Build a transcript-to-gene mapping from the chr11 GTF</h3>
+                    <p>tximport needs a two-column data frame mapping each transcript ID (<code>TXNAME</code>) to its gene ID (<code>GENEID</code>) to summarise transcript-level Salmon estimates to gene level.</p>
+                    <pre><code>gtf_path &lt;- "/ibex/user/$USER/workshop/references/chr11/GRCh38.chr11.gtf"
+
+txdb    &lt;- makeTxDbFromGFF(gtf_path, format = "gtf")
+k       &lt;- keys(txdb, keytype = "TXNAME")
+tx2gene &lt;- select(txdb, k, "GENEID", "TXNAME")
+
+head(tx2gene)
+cat("Transcript-to-gene mappings:", nrow(tx2gene), "\n")</code></pre>
+                </div>
+
+                <div class="step" data-step="4">
+                    <h3>Import Salmon output with tximport</h3>
+                    <pre><code>WORKSHOP &lt;- paste0("/ibex/user/", Sys.getenv("USER"), "/workshop")
+
+sample_ids &lt;- c(
+    "KO_1_SRR10045016", "KO_2_SRR10045017", "KO_3_SRR10045018",
+    "WT_1_SRR10045019", "WT_2_SRR10045020", "WT_3_SRR10045021"
+)
+
+quant_files &lt;- file.path(WORKSHOP, "counts/salmon", sample_ids, "quant.sf")
+names(quant_files) &lt;- sample_ids
+
+# Confirm all files exist
+stopifnot(all(file.exists(quant_files)))
+
+txi &lt;- tximport(
+    quant_files,
+    type       = "salmon",
+    tx2gene    = tx2gene,
+    ignoreTxVersion = TRUE
+)
+
+cat("Genes imported:", nrow(txi$counts), "\n")
+cat("Samples:", ncol(txi$counts), "\n")</code></pre>
+                    <div class="info-box note">
+                        <strong>What tximport does</strong>
+                        <p>tximport reads each <code>quant.sf</code> file, applies the <code>tx2gene</code> mapping to sum transcript-level estimates to the gene level, and corrects for average transcript length differences between samples. The <code>txi</code> object contains three matrices: <code>$counts</code> (estimated read counts), <code>$abundance</code> (TPM), and <code>$length</code> (effective gene length).</p>
+                    </div>
+                </div>
+
+                <div class="step" data-step="5">
+                    <h3>Build sample metadata (coldata)</h3>
+                    <pre><code>condition &lt;- ifelse(grepl("^KO", sample_ids), "knockdown", "control")
+
 coldata &lt;- data.frame(
     sample    = sample_ids,
-    condition = ifelse(grepl("^KO", sample_ids), "knockdown", "control"),
+    condition = factor(condition, levels = c("control", "knockdown")),
     row.names = sample_ids
 )
 
-coldata</code></pre>
-                <div class="info-box tip">
-                    <strong>Tip: Verify Sample Groups from GEO</strong>
-                    <p>Check the GEO page for GSE136366 (<a href="https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE136366" target="_blank">https://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc=GSE136366</a>) to confirm which SRR IDs correspond to control vs TDP-43 knockdown samples. The order in <code>coldata</code> must match the order in <code>quant_files</code>.</p>
+print(coldata)</code></pre>
                 </div>
-            </div>
 
-            <div class="step" data-step="6">
-                <h3>Build a DESeq2 object and apply VST</h3>
-                <pre><code># Create DESeqDataSet from tximport output
-dds &lt;- DESeqDataSetFromTximport(txi, colData = coldata, design = ~ condition)
+                <div class="step" data-step="6">
+                    <h3>Create DESeqDataSet and apply variance-stabilising transformation</h3>
+                    <pre><code>dds &lt;- DESeqDataSetFromTximport(
+    txi,
+    colData = coldata,
+    design  = ~ condition
+)
 
-# Filter out genes with very low counts (speeds up analysis and improves statistics)
+# Filter low-count genes (keep genes with at least 10 counts in total)
 dds &lt;- dds[rowSums(counts(dds)) &gt;= 10, ]
-cat("Genes retained after filtering:", nrow(dds), "\n")
+cat("Genes after low-count filter:", nrow(dds), "\n")
 
-# Apply variance-stabilising transformation (VST)
-# blind = TRUE: transformation ignores the experimental design — appropriate for QC/exploration
+# Apply variance-stabilising transformation (blind = TRUE for QC)
 vsd &lt;- vst(dds, blind = TRUE)
-
-# Inspect the transformed data
-assay(vsd)[1:5, 1:3]</code></pre>
-
-                <div class="info-box note">
-                    <strong>Why VST Before PCA?</strong>
-                    <p>Raw RNA-seq count data have a mean-variance relationship: highly expressed genes have much larger variance than lowly expressed ones. If you run PCA directly on raw counts, the first principal components will be dominated by a handful of highly expressed genes rather than reflecting true sample-level differences.</p>
-                    <p>Variance-stabilising transformation (VST) removes this mean-variance dependence, giving each gene roughly equal weight in the PCA. This makes the resulting plots far more interpretable. An alternative is <code>rlog()</code>, which is more robust for very small sample sizes (&lt; 15 samples) but slower to compute.</p>
+cat("VST complete\n")</code></pre>
+                    <div class="info-box note">
+                        <strong>Why VST?</strong>
+                        <p>Raw counts have variance that scales with the mean: highly expressed genes dominate PCA and distance calculations. VST brings all genes onto a comparable variance scale, giving a fairer representation of the transcriptome-wide structure. We use <code>blind = TRUE</code> during QC so that the transformation is not informed by the experimental design.</p>
+                    </div>
                 </div>
-            </div>
 
-            <div class="step" data-step="7">
-                <h3>PCA plot</h3>
-                <pre><code># Calculate PCA and retrieve data for ggplot2
-pca_data    &lt;- plotPCA(vsd, intgroup = "condition", returnData = TRUE)
-percent_var &lt;- round(100 * attr(pca_data, "percentVar"))
+                <div class="step" data-step="7">
+                    <h3>PCA plot</h3>
+                    <pre><code>pca_data &lt;- plotPCA(vsd, intgroup = "condition", returnData = TRUE)
+pct_var  &lt;- round(100 * attr(pca_data, "percentVar"), 1)
 
-# Plot with ggplot2
-ggplot(pca_data, aes(PC1, PC2, color = condition, label = name)) +
+p_pca &lt;- ggplot(pca_data, aes(x = PC1, y = PC2, colour = condition, label = name)) +
     geom_point(size = 4) +
-    geom_text(vjust = -0.8, size = 3) +
-    xlab(paste0("PC1: ", percent_var[1], "% variance")) +
-    ylab(paste0("PC2: ", percent_var[2], "% variance")) +
-    theme_bw() +
-    ggtitle("PCA \u2014 GSE136366 Samples (VST)")
+    geom_text(vjust = -0.8, hjust = 0.5, size = 3.5) +
+    scale_colour_manual(values = c(control = "#0d7377", knockdown = "#e07b4c")) +
+    xlab(paste0("PC1: ", pct_var[1], "% variance")) +
+    ylab(paste0("PC2: ", pct_var[2], "% variance")) +
+    ggtitle("PCA — GSE136366  (VST, chr11)") +
+    theme_bw(base_size = 13)
 
-# Save to file
-ggsave("results/pca_plot.pdf", width = 7, height = 5)</code></pre>
+print(p_pca)
 
-                <div class="info-box note">
-                    <strong>Interpreting the PCA Plot</strong>
-                    <p>A well-behaved RNA-seq experiment should show:</p>
-                    <ul>
-                        <li>Replicates from the same condition clustering tightly together</li>
-                        <li>The two conditions (control vs knockdown) separating along PC1 (the axis of greatest variation)</li>
-                    </ul>
-                    <p>If replicates from the same condition are far apart, this may indicate a sample swap, batch effect, or poor data quality for that sample. If conditions do not separate at all, the perturbation (TDP-43 knockdown) may have a modest transcriptional effect, or there may be a problem with the experimental conditions.</p>
+results_dir &lt;- file.path(WORKSHOP, "results")
+dir.create(results_dir, showWarnings = FALSE)
+ggsave(file.path(results_dir, "pca_plot_R.pdf"), p_pca, width = 7, height = 5)</code></pre>
                 </div>
-            </div>
 
-            <div class="step" data-step="8">
-                <h3>Sample-distance heatmap</h3>
-                <pre><code># Compute pairwise Euclidean distances between samples (on VST data)
-sampleDists       &lt;- dist(t(assay(vsd)))
-sampleDistMatrix  &lt;- as.matrix(sampleDists)
+                <div class="step" data-step="8">
+                    <h3>Sample-distance heatmap</h3>
+                    <pre><code># Compute pairwise Euclidean distances on VST matrix
+vst_mat   &lt;- assay(vsd)
+dist_mat  &lt;- dist(t(vst_mat))
+dist_df   &lt;- as.data.frame(as.matrix(dist_mat))
 
-# Plot as a heatmap
-pheatmap(sampleDistMatrix,
-    clustering_distance_rows = sampleDists,
-    clustering_distance_cols = sampleDists,
-    main     = "Sample-to-sample distances (VST)",
-    filename = "results/sample_distance_heatmap.pdf")
+# Annotation for heatmap sidebar
+ann_col &lt;- data.frame(
+    condition = coldata$condition,
+    row.names = rownames(coldata)
+)
+ann_colors &lt;- list(condition = c(control = "#0d7377", knockdown = "#e07b4c"))
 
-# Also display in interactive R session
-pheatmap(sampleDistMatrix,
-    clustering_distance_rows = sampleDists,
-    clustering_distance_cols = sampleDists,
-    main = "Sample-to-sample distances (VST)")</code></pre>
-
-                <div class="info-box note">
-                    <strong>Interpreting the Sample-Distance Heatmap</strong>
-                    <p>The heatmap shows pairwise distances between all samples. Darker blue cells indicate more similar samples (smaller distance). You should see:</p>
-                    <ul>
-                        <li>Replicates of the same condition clustering together (a block of dark-blue cells along the diagonal)</li>
-                        <li>Between-condition pairs appearing as lighter cells (greater distance)</li>
-                    </ul>
-                    <p>Any sample that clusters with the wrong condition group is a warning sign that warrants investigation before proceeding to differential expression analysis.</p>
+pheatmap(
+    dist_df,
+    annotation_col  = ann_col,
+    annotation_row  = ann_col,
+    annotation_colors = ann_colors,
+    color           = colorRampPalette(c("#2166ac", "white"))(100),
+    display_numbers = TRUE,
+    number_format   = "%.1f",
+    main            = "Sample-to-sample distances (VST, chr11)",
+    filename        = file.path(results_dir, "sample_distance_heatmap_R.pdf"),
+    width = 8, height = 7
+)</code></pre>
                 </div>
-            </div>
+            </details>
         </section>
 
         <!-- ============================================= -->

@@ -22,6 +22,15 @@
 
     <main>
         <h1>Lab 4: Read Alignment with STAR</h1>
+
+        <div class="lab-nav">
+            <a href="#part1"><span class="part-num">Part 1</span><span class="part-label">Setup</span></a>
+            <a href="#part2"><span class="part-num">Part 2</span><span class="part-label">Reference &amp; STAR Index</span></a>
+            <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">STAR Alignment</span></a>
+            <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">BAM Post-processing</span></a>
+            <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">Alignment QC</span></a>
+            <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">IGV Visualization</span></a>
+        </div>
         <p>In this lab, you will align the <strong>trimmed chromosome 11-filtered</strong> paired-end reads from GSE136366 (a TDP-43 RNA-seq study in human cells) to the <strong>chromosome 11 reference</strong> using STAR. You will then post-process and index the resulting BAM files, assess alignment quality, and visualize the alignments in IGV.</p>
 
         <div class="info-box tip">
@@ -366,23 +375,11 @@ done</code></pre>
         <!-- Part 6: Visualize in IGV         -->
         <!-- ================================ -->
         <section id="part6">
-            <h2>Part 6: Visualize Alignments in IGV</h2>
+            <h2>Part 6: [Optional] Visualize Alignments in IGV</h2>
             <p>The Integrative Genomics Viewer (IGV) lets you visually inspect read alignments at any genomic locus — essential for sanity-checking results and exploring specific genes of interest. Because these BAMs contain chr11-only reads, coverage is lower than a full-genome dataset but gene structure, splice junctions, and strand orientation are clearly visible for chr11 genes.</p>
 
             <div class="step" data-step="1">
-                <h3>Option A: Use IGV on Ibex Open OnDemand (recommended)</h3>
-                <p>The easiest approach is to use the IGV application available through the Ibex Open OnDemand web portal, which avoids transferring large BAM files:</p>
-                <ol>
-                    <li>Open your browser and navigate to the Ibex Open OnDemand portal</li>
-                    <li>Log in with your Ibex credentials</li>
-                    <li>Use the file browser to navigate to <code>/ibex/user/$USER/workshop/aligned/</code></li>
-                    <li>Launch IGV from the Interactive Apps menu</li>
-                </ol>
-            </div>
-
-            <div class="step" data-step="2">
-                <h3>Option B: Copy BAM files to your local machine</h3>
-                <p>If you prefer to run IGV locally, download the BAM and its index:</p>
+                <h3>To run IGV locally, copy BAM files to your local machine or mount Ibex on your local machine</h3>
                 <pre><code># Run these commands from your LOCAL terminal (not Ibex)
 # Replace "username" and "SRRxxxxxxxx" with real values
 
@@ -395,7 +392,7 @@ scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/aligned/KO_1_
                 <p>Download IGV from <a href="https://igv.org/doc/desktop/" target="_blank">https://igv.org/doc/desktop/</a> if not already installed.</p>
             </div>
 
-            <div class="step" data-step="3">
+            <div class="step" data-step="2">
                 <h3>Load the genome and BAM file in IGV</h3>
                 <ol>
                     <li>In IGV, select <strong>Genomes &rarr; Load Genome from Server</strong> and choose <strong>Human (GRCh38/hg38)</strong></li>
@@ -404,7 +401,7 @@ scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/aligned/KO_1_
                 </ol>
             </div>
 
-            <div class="step" data-step="4">
+            <div class="step" data-step="3">
                 <h3>Navigate to the TARDBP gene locus</h3>
                 <p>Since this dataset is a TDP-43 (TARDBP) study, navigate to the gene of interest:</p>
                 <pre><code># Type this gene name in the IGV search box to navigate:

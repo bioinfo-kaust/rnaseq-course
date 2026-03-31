@@ -82,6 +82,104 @@ install.packages(c("ggplot2", "dplyr", "tidyr", "ggrepel"))</code></pre>
             </div>
         </section>
 
+        <!-- ================================================ -->
+        <!-- Miniconda + Python environment on Ibex           -->
+        <!-- ================================================ -->
+        <section>
+            <h2>Python Environment on Ibex (for Jupyter Notebooks)</h2>
+            <p>Labs 5 and 7 include optional Python Jupyter notebooks for exploratory analysis and visualization. The steps below install <strong>Miniconda</strong> and <strong>mamba</strong> on Ibex, then create a dedicated <code>rnaseq-python</code> environment with all required packages.</p>
+
+            <div class="info-box note">
+                <strong>Run these commands on Ibex, not on your local machine.</strong>
+                <p>Connect to Ibex first (<code>ssh username@ilogin.ibex.kaust.edu.sa</code>), then follow the steps below in your home directory.</p>
+            </div>
+
+            <h3>Step 1 — Install Miniconda</h3>
+            <div class="code-container">
+                <pre><code># Download the Miniconda installer for Linux (64-bit)
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
+    -O ~/miniconda3_install.sh
+
+# Run the installer in batch mode (no interactive prompts)
+bash ~/miniconda3_install.sh -b -p ~/miniconda3
+
+# Activate conda for your current shell session
+source ~/miniconda3/bin/activate
+
+# Initialise conda so it loads automatically in future sessions
+conda init bash
+
+# Reload your shell config
+source ~/.bashrc
+
+# Verify
+conda --version</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+
+            <h3>Step 2 — Install mamba</h3>
+            <p>Mamba is a faster drop-in replacement for the <code>conda</code> solver. Install it once into the base environment:</p>
+            <div class="code-container">
+                <pre><code>conda install -n base -c conda-forge mamba -y
+
+# Verify
+mamba --version</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+
+            <h3>Step 3 — Create the <code>rnaseq-python</code> environment</h3>
+            <p>This environment includes JupyterLab and all Python packages used in the course notebooks (data handling, PCA, plotting, and differential expression analysis):</p>
+            <div class="code-container">
+                <pre><code>mamba create -n rnaseq-python -c conda-forge -c bioconda \
+    python=3.11 \
+    jupyterlab \
+    ipykernel \
+    pandas \
+    numpy \
+    matplotlib \
+    seaborn \
+    scikit-learn \
+    scipy \
+    pydeseq2 \
+    adjusttext \
+    -y</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+
+            <div class="info-box note">
+                <strong>Package overview</strong>
+                <table style="width:100%; border-collapse:collapse; font-size:0.9rem; margin:0.5rem 0;">
+                    <thead>
+                        <tr style="background:#e8f4fd;">
+                            <th style="padding:0.4rem 0.8rem; text-align:left; border-bottom:2px solid #2196F3;">Package</th>
+                            <th style="padding:0.4rem 0.8rem; text-align:left; border-bottom:2px solid #2196F3;">Used for</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>jupyterlab</code> / <code>ipykernel</code></td><td style="padding:0.3rem 0.8rem;">Interactive notebooks</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>pandas</code> / <code>numpy</code></td><td style="padding:0.3rem 0.8rem;">Reading quant.sf files, matrix operations</td></tr>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>matplotlib</code> / <code>seaborn</code></td><td style="padding:0.3rem 0.8rem;">PCA plots, heatmaps, volcano plots</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>scikit-learn</code></td><td style="padding:0.3rem 0.8rem;">PCA decomposition</td></tr>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>scipy</code></td><td style="padding:0.3rem 0.8rem;">Pairwise distances for sample-distance heatmap</td></tr>
+                        <tr style="background:#f9f9f9;"><td style="padding:0.3rem 0.8rem;"><code>pydeseq2</code></td><td style="padding:0.3rem 0.8rem;">Differential expression analysis in Python (Lab 7)</td></tr>
+                        <tr><td style="padding:0.3rem 0.8rem;"><code>adjustText</code></td><td style="padding:0.3rem 0.8rem;">Non-overlapping labels in volcano plots</td></tr>
+                    </tbody>
+                </table>
+            </div>
+
+            <h3>Step 4 — Activate and verify</h3>
+            <div class="code-container">
+                <pre><code>conda activate rnaseq-python
+
+# Check that key packages are installed and importable
+python -c "import pandas, numpy, matplotlib, seaborn, sklearn, pydeseq2; print('All packages OK')"
+
+# Confirm Jupyter Lab is available
+jupyter lab --version</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+        </section>
+
         <section>
             <h2>Connecting to Ibex</h2>
             <div class="code-container">

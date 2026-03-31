@@ -23,6 +23,14 @@
     <main>
         <h1>Lab 1: Genomic File Formats</h1>
 
+        <div class="lab-nav">
+            <a href="#part1"><span class="part-num">Part 1</span><span class="part-label">Login to Ibex</span></a>
+            <a href="#Get sample data"><span class="part-num">Part 2</span><span class="part-label">Sample Data</span></a>
+            <a href="#fasta"><span class="part-num">Part 3</span><span class="part-label">FASTA Files</span></a>
+            <a href="#fastq"><span class="part-num">Part 4</span><span class="part-label">FASTQ Files</span></a>
+            <a href="#bam"><span class="part-num">Part 5</span><span class="part-label">BAM Files</span></a>
+        </div>
+
         <div class="info-box note">
             <strong>Learning Objectives</strong>
             <ul>
@@ -160,9 +168,6 @@ grep ...</code></pre></div>
 <div class="step" data-step="2">
     <h3>Use seqkit to read genomic files</h3>
     <pre><code>
-#get list of all tools on ibex:
-module avail
-
 #search for a specific tool:
 module avail seqkit
 
@@ -183,7 +188,7 @@ seqkit stats -a genome_data/reference/mini_ref.fasta</code></pre>
             </div>
 
             <div class="step" data-step="3">
-                <h3>Extract Sequence Headers and Lengths</h3>
+                <h3>Extract Sequence Headers</h3>
                 <pre><code># View headers only (sequence names)
 seqkit seq -n genome_data/reference/mini_ref.fasta</code></pre>
             </div>
@@ -304,7 +309,7 @@ tail -10 genome_data/fastq/truncated.fastq</code></pre>
 seqkit stats genome_data/sequences/*.fq
 
 # You can also use wildcards for subsets
-seqkit stats genome_data/sequence_0*.fq</code></pre>
+seqkit stats genome_data/sequences/sample_*.fq</code></pre>
             </div>
         </section>
 
@@ -317,7 +322,10 @@ seqkit stats genome_data/sequence_0*.fq</code></pre>
 
             <div class="step" data-step="1">
                 <h3>View the BAM Header</h3>
-                <pre><code># View the header (reference sequences and program info)
+                <pre><code>#Load samtools tool
+module load samtools
+
+# View the header (reference sequences and program info)
 samtools view -H genome_data/bam/sample.bam | head -20</code></pre>
                 <div class="info-box note">
                     <strong>BAM Header Sections</strong>
@@ -378,21 +386,6 @@ samtools view -c -F 4 genome_data/bam/sample.bam</code></pre>
                     <p>Use the Broad Institute's interactive tool to decode any SAM flag value: <a href="https://broadinstitute.github.io/picard/explain-flags.html" target="_blank">https://broadinstitute.github.io/picard/explain-flags.html</a></p>
                 </div>
             </div>
-
-            <div class="step" data-step="5">
-                <h3>SAM vs BAM: View the Text Version</h3>
-                <pre><code># The sample data also includes a SAM file (text format)
-head -20 genome_data/misc/sample.sam</code></pre>
-                <div class="info-box note">
-                    <strong>SAM vs BAM</strong>
-                    <ul>
-                        <li><strong>SAM</strong> (Sequence Alignment Map) -- Human-readable text format. Useful for inspection and debugging, but large in size.</li>
-                        <li><strong>BAM</strong> (Binary Alignment Map) -- Compressed binary version of SAM. Much smaller and faster to process. This is the format used in practice.</li>
-                        <li>Convert between them: <code>samtools view -bS input.sam &gt; output.bam</code></li>
-                        <li>BAM files are typically sorted and indexed for fast random access: <code>samtools sort</code> and <code>samtools index</code></li>
-                    </ul>
-                </div>
-            </div>
         </section>
 
 
@@ -423,8 +416,8 @@ head -20 genome_data/misc/sample.sam</code></pre>
 
             <div class="card">
                 <h3>Exercise 4: Pattern Search</h3>
-                <p>Find all reads in <code>genome_data/fastq/sample_R1.fastq</code> that contain the pattern "ATCG". How many are there?</p>
-                <p><em>Hint: Use <code>seqkit grep -s -r -p "ATCG"</code> and pipe to <code>seqkit stats</code></em></p>
+                <p>Find all reads in <code>genome_data/fastq/sample_R1.fastq</code> that contain the pattern "TTGC". How many are there?</p>
+                <p><em>Hint: Use <code>seqkit grep -s -r -p "TTGC"</code> and pipe to <code>seqkit stats</code></em></p>
             </div>
         </section>
 

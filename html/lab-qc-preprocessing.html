@@ -22,6 +22,14 @@
 
     <main>
         <h1>Lab 3: QC and Preprocessing</h1>
+
+        <div class="lab-nav">
+            <a href="#part1"><span class="part-num">Part 1</span><span class="part-label">Setup on Ibex</span></a>
+            <a href="#part2"><span class="part-num">Part 2</span><span class="part-label">FastQC</span></a>
+            <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">fastp Trimming</span></a>
+            <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">Post-trim FastQC</span></a>
+            <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">MultiQC Report</span></a>
+        </div>
         <p>In this lab you will assess the quality of the <strong>chromosome 11-filtered reads</strong> from <strong>GSE136366</strong>, trim adapters and low-quality bases using <code>fastp</code>, re-assess quality after trimming, and aggregate all QC reports into a single interactive summary with <code>MultiQC</code>.</p>
 
         <div class="info-box tip">
@@ -99,22 +107,35 @@ ls -la</code></pre>
             </div>
 
             <div class="step" data-step="4">
-                <h3>Confirm that chr11 FASTQ files are present</h3>
-                <p>The chr11-filtered FASTQs were downloaded from Zenodo in Lab 2 (Part 5) into <code>chr11_raw_data/</code>. Verify they are present before proceeding:</p>
+                <h3>Copy the chr11 FASTQ files from the shared course directory</h3>
+                <p>For Labs 3–5 we work with a <strong>chromosome 11-filtered subset</strong> of GSE136366. These files are pre-prepared on Ibex shared storage — copying takes only a few seconds.</p>
                 <pre><code>cd /ibex/user/$USER/workshop
 
-ls -lh chr11_raw_data/*.fastq.gz</code></pre>
+# Create the dedicated directory for chr11 data
+mkdir -p chr11_raw_data
+
+# Copy all chr11 FASTQs from the shared Ibex path
+cp /biocorelab/BIX/resources/datasets/rnaseq/GSE136366_KO_chr11/*.fastq.gz chr11_raw_data/
+
+# Verify — you should see 12 files (6 samples × 2 paired-end reads)
+ls -lh chr11_raw_data/</code></pre>
                 <div class="info-box note">
                     <strong>Expected files</strong>
-                    <p>You should see 12 files — one R1 and one R2 per sample:</p>
                     <pre><code>KO_1_SRR10045016_1.fastq.gz   KO_1_SRR10045016_2.fastq.gz
 KO_2_SRR10045017_1.fastq.gz   KO_2_SRR10045017_2.fastq.gz
 KO_3_SRR10045018_1.fastq.gz   KO_3_SRR10045018_2.fastq.gz
 WT_1_SRR10045019_1.fastq.gz   WT_1_SRR10045019_2.fastq.gz
 WT_2_SRR10045020_1.fastq.gz   WT_2_SRR10045020_2.fastq.gz
 WT_3_SRR10045021_1.fastq.gz   WT_3_SRR10045021_2.fastq.gz</code></pre>
-                    <p>If any files are missing, return to <a href="lab-public-data.html">Lab 2, Part 5</a> and re-run the Zenodo download.</p>
+                    <p><strong>Naming convention:</strong> <code>{condition}_{replicate}_{SRR}_{read}.fastq.gz</code> — <code>KO</code> = TDP-43 knockdown, <code>WT</code> = wild type (control).</p>
                 </div>
+            </div>
+
+            <div class="step" data-step="5">
+                <h3>Verify read counts</h3>
+                <pre><code>module load seqkit
+seqkit stats chr11_raw_data/*_1.fastq.gz</code></pre>
+                <p>Expect approximately <strong>3–4 million reads per sample</strong> — sufficient for biologically meaningful QC, alignment, and quantification on chromosome 11.</p>
             </div>
         </section>
 

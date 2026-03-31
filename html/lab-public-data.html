@@ -22,6 +22,17 @@
 
     <main>
         <h1>Lab 2: Public Data Retrieval</h1>
+
+        <div class="lab-nav">
+            <a href="#part1"><span class="part-num">Part 1</span><span class="part-label">Setup on Ibex</span></a>
+            <a href="#part2"><span class="part-num">Part 2</span><span class="part-label">Finding Data on NCBI</span></a>
+            <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">Download Reads</span></a>
+            <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">Reference Genomes</span></a>
+            <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">Subsampling</span></a>
+            <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">Organize Workspace</span></a>
+            <a href="#part7"><span class="part-num">Part 7</span><span class="part-label">Explore Data</span></a>
+        </div>
+
         <p>In this lab, you will find, download, and organize the course dataset (GSE136366) and the human reference genome on the Ibex cluster, ready for all downstream analysis.</p>
 
         <div class="info-box note">
@@ -37,7 +48,7 @@
             </ul>
         </div>
 
-        <section>
+        <section id="part1">
             <h2>Part 1: Setup on Ibex</h2>
             <p>Connect to Ibex, start an interactive session, and load the tools needed for this lab.</p>
 
@@ -77,7 +88,7 @@ ls -la</code></pre>
             </div>
         </section>
 
-        <section>
+        <section id="part2">
             <h2>Part 2: Finding Data on NCBI</h2>
             <p>Before downloading data, you need to know how to find it. NCBI hosts two key resources:</p>
                 <ol>
@@ -170,56 +181,34 @@ ls -la</code></pre>
             </div>
         </section>
 
-        <section>
+        <section id="part3">
             <h2>Part 3: Downloading Raw Sequencing Data with sra-tools</h2>
             <p>The SRA Toolkit provides command-line tools to download and convert SRA data. The two main commands are <code>prefetch</code> (downloads compressed .sra files) and <code>fasterq-dump</code> (converts .sra to FASTQ).</p>
-
-            <div class="info-box tip">
-                <strong>Already on Ibex? Copy from the shared course directory (faster)</strong>
-                <p>The full GSE136366 FASTQs are available at a shared path on Ibex. If you have access, copying is instant and skips the SRA download entirely:</p>
-                <pre><code>SHARED=/biocorelab/BIX/resources/datasets/rnaseq/GSE136366/raw_fastq
-
-cp ${SHARED}/*.fastq.gz /ibex/user/$USER/workshop/raw_data/
-
-ls -lh /ibex/user/$USER/workshop/raw_data/</code></pre>
-                <p>If that path is accessible, you can <strong>skip Steps 1–4 of this part</strong> and continue with Part 4. If not, follow the SRA download steps below.</p>
-            </div>
 
             <div class="step" data-step="1">
                 <h3>Navigate to your raw data directory</h3>
                 <pre><code>cd /ibex/user/$USER/workshop/raw_data</code></pre>
             </div>
 
-            <div class="step" data-step="3">
-                <h3>Batch download GSE136366 using an accession list</h3>
-                <p>Upload the <code>SRR_Acc_List.txt</code> file you downloaded from the SRA Run Selector to Ibex (or copy its contents). Then use a loop to download all samples:</p>
-                <pre><code># Move the accession list to your raw_data directory
-# (upload via scp, or copy-paste the SRR IDs into a file)
-# Example contents of SRR_Acc_List.txt:
-#   SRR10009250
-#   SRR10009251
-#   SRR10009252
-#   ... (one SRR per line)
+            <div class="step" data-step="2">
+                <h3>Test: Download GSE136366 with prefetch and convert to FASTQ</h3>
+                <p>Pass the GEO accession directly to <code>prefetch</code> — it resolves all associated SRR runs automatically and downloads them into a <code>GSE136366/</code> directory.</p>
+                <pre><code># Download all runs for GSE136366 in one command (takes too long)
+prefetch GSE136366
 
-# Batch prefetch all accessions
-prefetch --option-file SRR_Acc_List.txt
-
-# Convert each SRA file to paired FASTQ
-while read srr; do
-    echo "Converting $srr ..."
-    fasterq-dump --split-files --threads 4 ${srr}/${srr}.sra
-    gzip ${srr}_1.fastq ${srr}_2.fastq
-done &lt; SRR_Acc_List.txt
-
-# Check what you have
-ls -lh *.fastq.gz</code></pre>
+# Convert each downloaded .sra file to paired FASTQ
+for sra in GSE136366/**/*.sra; do
+    echo "Converting $sra ..."
+    fasterq-dump --split-files --threads 4 "$sra"
+done</code></pre>
                 <div class="info-box note">
                     <strong>Storage tip</strong>
                     <p>Compress FASTQ files immediately after conversion (<code>gzip</code>). Raw FASTQ files are very large; gzip reduces their size 4–5×. Use <code>/ibex/user/$USER</code> for all large files — home directories have limited quota.</p>
                 </div>
             </div>
 
-            <div class="step" data-step="4">
+            <div class="step" data-step="3">
+                <h3 style="margin-top:2rem; padding:0.5rem 1rem; background:#e8f4fd; border-left:4px solid #2196F3;">Option A: Download the full dataset from NCBI using <code>prefetch</code></h3>
                 <h3>Submit the download as an sbatch job (recommended)</h3>
                 <p>Downloading and converting all GSE136366 samples can take several hours. Running this interactively risks losing work if your SSH session disconnects. Instead, submit it as a <strong>SLURM batch job</strong> on Ibex using <code>sbatch</code>.</p>
 
@@ -254,8 +243,7 @@ ls -lh *.fastq.gz</code></pre>
 
                 <h4 style="margin-top:1.2rem;">Create the submission script</h4>
                 <p>Save the script below as <code>download_sra.sh</code> in your <code>raw_data</code> directory:</p>
-                <pre><code>cat &gt; /ibex/user/$USER/workshop/raw_data/download_sra.sh &lt;&lt; 'EOF'
-#!/bin/bash
+                <pre><code>#!/bin/bash
 #SBATCH --job-name=sra_download       # Name shown in squeue
 #SBATCH --ntasks=1                    # Single task (not MPI)
 #SBATCH --cpus-per-task=8             # 8 threads for fasterq-dump
@@ -274,30 +262,36 @@ module load sratoolkit
 
 mkdir -p logs
 
-ACC_LIST="SRR_Acc_List.txt"
-
-# ---------- step 1: prefetch (download .sra files) ----------
-echo "[$(date)] Starting prefetch for $(wc -l &lt; $ACC_LIST) accessions ..."
-prefetch --option-file "$ACC_LIST" --max-size 50G
+# ---------- step 1: prefetch (download all runs for GSE136366) ----------
+echo "Starting prefetch ..."
+prefetch GSE136366
 
 # ---------- step 2: convert .sra to paired FASTQ ----------
-echo "[$(date)] Starting fasterq-dump ..."
-while read srr; do
-    echo "  Converting $srr ..."
-    fasterq-dump \
-        --split-files \
-        --threads 8 \
-        --outdir . \
-        ${srr}/${srr}.sra
+echo "Starting fasterq-dump ..."
+for sra in GSE136366/**/*.sra; do
+    echo "  Converting $sra ..."
+    fasterq-dump --split-files --threads 8 "$sra"
+done
+gzip *.fastq
 
-    # Compress immediately to save space
-    gzip "${srr}_1.fastq" "${srr}_2.fastq"
-    echo "  Done: ${srr}_1.fastq.gz  ${srr}_2.fastq.gz"
-done &lt; "$ACC_LIST"
+# ---------- step 3: rename to add condition/replicate prefix ----------
+echo "Renaming files to match shared folder convention ..."
+mv SRR10045016_1.fastq.gz KO_1_SRR10045016_1.fastq.gz
+mv SRR10045016_2.fastq.gz KO_1_SRR10045016_2.fastq.gz
+mv SRR10045017_1.fastq.gz KO_2_SRR10045017_1.fastq.gz
+mv SRR10045017_2.fastq.gz KO_2_SRR10045017_2.fastq.gz
+mv SRR10045018_1.fastq.gz KO_3_SRR10045018_1.fastq.gz
+mv SRR10045018_2.fastq.gz KO_3_SRR10045018_2.fastq.gz
+mv SRR10045019_1.fastq.gz WT_1_SRR10045019_1.fastq.gz
+mv SRR10045019_2.fastq.gz WT_1_SRR10045019_2.fastq.gz
+mv SRR10045020_1.fastq.gz WT_2_SRR10045020_1.fastq.gz
+mv SRR10045020_2.fastq.gz WT_2_SRR10045020_2.fastq.gz
+mv SRR10045021_1.fastq.gz WT_3_SRR10045021_1.fastq.gz
+mv SRR10045021_2.fastq.gz WT_3_SRR10045021_2.fastq.gz
 
-echo "[$(date)] All downloads complete."
+echo "All downloads complete."
 ls -lh *.fastq.gz
-EOF</code></pre>
+</code></pre>
 
                 <h4 style="margin-top:1.2rem;">Submit and monitor the job</h4>
                 <pre><code># Submit to SLURM
@@ -316,11 +310,20 @@ scancel JOBID</code></pre>
                     <strong>After the job finishes</strong>
                     <p>Check the <code>.err</code> log for any errors, then verify all expected FASTQ pairs are present: <code>ls -lh *.fastq.gz | wc -l</code> should equal <em>2 × number of samples</em>. If a sample failed, re-run <code>fasterq-dump</code> for just that SRR ID rather than re-running the whole job.</p>
                 </div>
+                <h3 style="margin-top:2rem; padding:0.5rem 1rem; background:#e8f4fd; border-left:4px solid #2196F3;">Option B: Copy from the shared course directory (faster)</h3>
+                <div class="info-box tip">
+                    <p>The full GSE136366 FASTQs are available at a shared path on Ibex. Files there are already named with the <code>KO_1_</code>/<code>WT_1_</code> prefix convention. If you have access, copying is instant and skips the SRA download and renaming entirely:</p>
+                    <pre><code>cp /biocorelab/BIX/resources/datasets/rnaseq/GSE136366/raw_fastq/*.fastq.gz /ibex/user/$USER/workshop/raw_data/
+
+ls -lh /ibex/user/$USER/workshop/raw_data/</code></pre>
+                    <p>If that path is accessible, you can <strong>skip Steps 1–4 of this part</strong> and continue with Part 4. If not, follow the SRA download steps below.</p>
+                </div>
+    
             </div>
 
         </section>
 
-        <section>
+        <section id="part4">
             <h2>Part 4: Downloading Reference Genomes</h2>
             <p>Reference genomes and gene annotations are available from two major sources: <strong>NCBI</strong> and <strong>Ensembl</strong>. Both provide the same biological data but differ in naming conventions, annotation sources, and access tools. We will cover both approaches.</p>
 
@@ -335,7 +338,7 @@ scancel JOBID</code></pre>
 
             <div class="step" data-step="ncbi-ds-1">
                 <h3>Get the NCBI datasets tool on Ibex</h3>
-                <pre><code># 
+                <pre><code>#load NCBI datasets tool
 module load ncbi_datasets_tools
 
 # Check the help message
@@ -503,44 +506,8 @@ ls -lh</code></pre>
             </div>
         </section>
 
-        <section>
-            <h2>Part 5: Copy Chr11 Subset for Labs 3–5</h2>
-            <p>For the hands-on QC, alignment, and quantification labs (Labs 3–5) we work with a <strong>chromosome 11-filtered subset</strong> of GSE136366. These files are pre-prepared and available on the Ibex shared storage — copying takes only a few seconds.</p>
-
-            <div class="step" data-step="1">
-                <h3>Copy the chr11 FASTQ files from the shared course directory</h3>
-                <pre><code>cd /ibex/user/$USER/workshop
-
-# Create the dedicated directory for chr11 data
-mkdir -p chr11_raw_data
-
-# Copy all chr11 FASTQs from the shared Ibex path
-cp /biocorelab/BIX/resources/datasets/rnaseq/GSE136366_KO_chr11/*.fastq.gz chr11_raw_data/
-
-# Verify — you should see 12 files (6 samples × 2 paired-end reads)
-ls -lh chr11_raw_data/</code></pre>
-                <div class="info-box note">
-                    <strong>Expected files</strong>
-                    <pre><code>KO_1_SRR10045016_1.fastq.gz   KO_1_SRR10045016_2.fastq.gz
-KO_2_SRR10045017_1.fastq.gz   KO_2_SRR10045017_2.fastq.gz
-KO_3_SRR10045018_1.fastq.gz   KO_3_SRR10045018_2.fastq.gz
-WT_1_SRR10045019_1.fastq.gz   WT_1_SRR10045019_2.fastq.gz
-WT_2_SRR10045020_1.fastq.gz   WT_2_SRR10045020_2.fastq.gz
-WT_3_SRR10045021_1.fastq.gz   WT_3_SRR10045021_2.fastq.gz</code></pre>
-                    <p><strong>Naming convention:</strong> <code>{condition}_{replicate}_{SRR}_{read}.fastq.gz</code> — <code>KO</code> = TDP-43 knockdown, <code>WT</code> = wild type (control).</p>
-                </div>
-            </div>
-
-            <div class="step" data-step="2">
-                <h3>Verify read counts</h3>
-                <pre><code>module load seqkit
-seqkit stats chr11_raw_data/*_1.fastq.gz</code></pre>
-                <p>Expect approximately <strong>3–4 million reads per sample</strong> — sufficient for biologically meaningful QC, alignment, and quantification on chromosome 11.</p>
-            </div>
-        </section>
-
-        <section>
-            <h2>Part 6: Subsampling Full Data (Optional)</h2>
+        <section id="part5">
+            <h2>Part 5: Subsampling Full Data (Optional)</h2>
             <p>If you want to quickly test a pipeline with a minimal dataset, you can subsample the full SRA FASTQs to 1 million reads. This is separate from the chr11 data used in Labs 3–5.</p>
 
             <div class="step" data-step="1">
@@ -559,8 +526,8 @@ seqkit stats subsampled_raw_data/*_sub_1.fastq.gz</code></pre>
             </div>
         </section>
 
-        <section>
-            <h2>Part 7: Organizing Your Workspace</h2>
+        <section id="part6">
+            <h2>Part 6: Organizing Your Workspace</h2>
 
             <div class="step" data-step="1">
                 <h3>Create the full directory structure</h3>
@@ -572,7 +539,6 @@ ls /ibex/user/$USER/workshop/</code></pre>
                     <table class="schedule-table">
                         <tr><th>Directory</th><th>Contents</th><th>Used in</th></tr>
                         <tr><td><code>raw_data/</code></td><td>Original full FASTQ files downloaded from SRA</td><td>Lab 6 onwards (nf-core)</td></tr>
-                        <tr><td><code>chr11_raw_data/</code></td><td>Chr11-filtered FASTQs from Zenodo (KO/WT naming)</td><td>Labs 3–5</td></tr>
                         <tr><td><code>subsampled_raw_data/</code></td><td>1 M read subsets of the full FASTQs</td><td>Pipeline testing only</td></tr>
                         <tr><td><code>trimmed/</code></td><td>fastp-trimmed FASTQs</td><td>Labs 3–5</td></tr>
                         <tr><td><code>aligned/</code></td><td>STAR BAM files</td><td>Lab 4</td></tr>
@@ -584,8 +550,8 @@ ls /ibex/user/$USER/workshop/</code></pre>
             </div>
         </section>
 
-        <section>
-            <h2>Part 6: Exploring Downloaded Data</h2>
+        <section id="part7">
+            <h2>Part 7: Exploring Downloaded Data</h2>
             <p>Before proceeding with analysis, always inspect your downloaded data to make sure everything looks correct.</p>
 
             <div class="step" data-step="1">
@@ -674,7 +640,6 @@ seqkit stats raw_data/$(head -1 raw_data/SRR_Acc_List.txt)_1.fastq.gz</code></pr
                 <li>Downloaded a reference genome using <strong>NCBI <code>datasets</code></strong> CLI (Option A)</li>
                 <li>Downloaded a reference genome from <strong>Ensembl FTP</strong> using <code>wget</code> (Option B)</li>
                 <li>Explored genome metadata using <code>dataformat</code></li>
-                <li>Downloaded the <strong>chr11-filtered subset</strong> from Zenodo into <code>chr11_raw_data/</code> for use in Labs 3–5</li>
                 <li>Used <code>seqkit</code> to summarize FASTQ data</li>
                 <li>Organized all data with a clear directory structure on Ibex (<code>raw_data/</code>, <code>chr11_raw_data/</code>, <code>trimmed/</code>, etc.)</li>
             </ul>
