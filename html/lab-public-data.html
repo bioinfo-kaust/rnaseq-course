@@ -402,11 +402,11 @@ ls ncbi_dataset/data/GCF_000001405.40/
 #   sequence_report.jsonl                     - sequence metadata
 
 # Copy files to your references directory with clear names
-cp ncbi_dataset/data/GCF_000001405.40/*.fna references/GRCh38_genome.fa
-cp ncbi_dataset/data/GCF_000001405.40/genomic.gtf references/GRCh38_genes.gtf
+cp ncbi_dataset/data/GCF_000001405.40/*.fna GRCh38_genome.fa
+cp ncbi_dataset/data/GCF_000001405.40/genomic.gtf GRCh38_genes.gtf
 
 # Verify the genome (should report ~3 GB sequence, 25 chromosomes)
-seqkit stats references/GRCh38_genome.fa
+seqkit stats GRCh38_genome.fa
 
 # Clean up the zip and extracted directory
 rm -r ncbi_dataset ncbi_dataset.zip</code></pre>
