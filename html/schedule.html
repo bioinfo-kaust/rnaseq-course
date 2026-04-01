@@ -86,7 +86,7 @@
                     <tr>
                         <td>11:00 &ndash; 12:00</td>
                         <td class="session-type">Lecture</td>
-                        <td>Experimental design: replication, batch effects, and statisical power</td>
+                        <td>Seuqencing technology: Illumina</td>
                         <td>&mdash;</td>
                     </tr>
                     <tr>
@@ -141,7 +141,7 @@
         <section id="day2">
             <h2>Day 2 &mdash; Monday, 6 April 2026</h2>
 
-            <h3 id="module3">Module 3: QC and Preprocessing</h3>
+            <h3 id="module3">Module 3: Design, Quality Control and Preprocessing</h3>
             <table class="schedule-table">
                 <thead>
                     <tr>
@@ -155,14 +155,15 @@
                     <tr>
                         <td>09:00 &ndash; 09:45</td>
                         <td class="session-type">Lecture</td>
-                        <td>Raw data quality evaluation: interpreting FastQC reports</td>
-                        <td><code>FastQC</code></td>
+                        <td>Experimental design: replication, batch effects, and statisical power</td>
+                        <td>&mdash;</td>
                     </tr>
+                    
                     <tr>
                         <td>09:45 &ndash; 10:30</td>
-                        <td class="session-type">Lecture</td>
-                        <td>Adapter trimming and quality filtering with fastp; ribosomal and contaminant removal</td>
-                        <td><code>fastp</code></td>
+                        <td class="session-type">Interative Lecture</td>
+                        <td>Raw data quality evaluation with FastQC</td>
+                        <td><code>FastQC</code></td>
                     </tr>
                     <tr>
                         <td>10:30 &ndash; 10:45</td>
@@ -170,8 +171,15 @@
                         <td>&mdash;</td>
                         <td>&mdash;</td>
                     </tr>
+                    
+                    <tr>
+                        <td>10:45 &ndash; 11:30</td>
+                        <td class="session-type">Interative Lecture</td>
+                        <td>Quality control & filtering with fastp; ribosomal and contaminant removal</td>
+                        <td><code>fastp</code></td>
+                    </tr>
                     <tr class="lab-session">
-                        <td>10:45 &ndash; 12:00</td>
+                        <td>09:45 &ndash; 12:00</td>
                         <td class="session-type">Lab 3</td>
                         <td>FastQC, fastp trimming, and MultiQC report — QC of GSE136366 samples</td>
                         <td><code>FastQC</code>, <code>fastp</code>, <code>MultiQC</code></td>
@@ -199,13 +207,13 @@
                     <tr>
                         <td>13:00 &ndash; 14:00</td>
                         <td class="session-type">Lecture</td>
-                        <td>Read alignment vs. pseudoalignment; splice-aware alignment; building a STAR index</td>
+                        <td>Read alignment vs. pseudoalignment; splice-aware alignment</td>
                         <td><code>STAR</code></td>
                     </tr>
                     <tr>
                         <td>14:00 &ndash; 14:30</td>
                         <td class="session-type">Lecture</td>
-                        <td>Post-processing aligned reads: sorting, indexing, duplicate marking, alignment QC</td>
+                        <td>Post-processing aligned reads: sorting, indexing, duplicate marking</td>
                         <td><code>samtools</code>, <code>Picard</code></td>
                     </tr>
                     <tr>
@@ -214,11 +222,18 @@
                         <td>&mdash;</td>
                         <td>&mdash;</td>
                     </tr>
+                    
                     <tr class="lab-session">
-                        <td>14:45 &ndash; 16:30</td>
+                        <td>14:45 &ndash; 16:00</td>
                         <td class="session-type">Lab 4</td>
                         <td>STAR alignment of GSE136366 samples; BAM post-processing and visualization in IGV</td>
                         <td><code>STAR</code>, <code>samtools</code>, <code>Picard</code>, <code>IGV</code></td>
+                    </tr>
+                    <tr>
+                        <td>16:00 &ndash; 16:30</td>
+                        <td class="session-type">Lecture</td>
+                        <td>Post-alignment QC: strandedness, coverage uniformity, duplication, library complexity</td>
+                        <td><code>RSeQC</code>, <code>QualiMap</code>, <code>dupRadar</code>, <code>PreSeq</code></td>
                     </tr>
                     <tr>
                         <td>16:30 &ndash; 17:00</td>
@@ -248,14 +263,15 @@
                     <tr>
                         <td>09:00 &ndash; 09:45</td>
                         <td class="session-type">Lecture</td>
-                        <td>Transcript quantification with Salmon: selective alignment and TPM</td>
+                        <td>Transcript quantification with Salmon</td>
                         <td><code>Salmon</code></td>
                     </tr>
-                    <tr>
+                    
+                    <tr class="lab-session">
                         <td>09:45 &ndash; 10:30</td>
-                        <td class="session-type">Lecture</td>
-                        <td>Post-alignment QC: strandedness, coverage uniformity, duplication, library complexity</td>
-                        <td><code>RSeQC</code>, <code>QualiMap</code>, <code>dupRadar</code>, <code>PreSeq</code></td>
+                        <td class="session-type">Lab 5</td>
+                        <td>Salmon quantification of GSE136366</td>
+                        <td><code>Salmon</code></td>
                     </tr>
                     <tr>
                         <td>10:30 &ndash; 10:45</td>
@@ -263,12 +279,14 @@
                         <td>&mdash;</td>
                         <td>&mdash;</td>
                     </tr>
+                    
                     <tr class="lab-session">
                         <td>10:45 &ndash; 12:00</td>
                         <td class="session-type">Lab 5</td>
-                        <td>Salmon quantification of GSE136366; PCA and sample-level exploratory analysis</td>
-                        <td><code>Salmon</code>, <code>tximport</code>, <code>ggplot2</code></td>
+                        <td>Visualization of gene level quantification and sample-level exploratory analysis</td>
+                        <td><code>tximport</code>, <code>ggplot2</code></td>
                     </tr>
+                    
                     <tr>
                         <td>12:00 &ndash; 13:00</td>
                         <td class="session-type">Lunch</td>
