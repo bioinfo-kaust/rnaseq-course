@@ -367,7 +367,7 @@ datasets summary genome accession GCF_000001405.40</code></pre>
                 <h3>Download genome and annotation</h3>
                 <p>The <code>datasets download</code> command fetches the genome FASTA, annotation (GTF/GFF3), and metadata in a single zip archive:</p>
                 <pre><code># Download human GRCh38 reference genome with annotations
-# Note: This is a large download (~3 GB) — run as a batch job on Ibex
+# Note: This is a large download (~3 GB)
 datasets download genome accession GCF_000001405.40 \
     --include genome,gtf,seq-report
 
@@ -410,30 +410,6 @@ seqkit stats GRCh38_genome.fa
 
 # Clean up the zip and extracted directory
 rm -r ncbi_dataset ncbi_dataset.zip</code></pre>
-            </div>
-
-            <div class="step" data-step="ncbi-ds-5">
-                <h3>Download multiple genomes or by taxon</h3>
-                <pre><code># Download by species name (gets the reference genome)
-datasets download genome taxon "Homo sapiens" \
-    --reference --include genome,gtf
-
-# Check available GRCh38 patch versions
-datasets summary genome taxon "Homo sapiens" --reference | \
-    dataformat tsv genome --fields assminfo-name,assminfo-level</code></pre>
-            </div>
-
-            <div class="step" data-step="ncbi-ds-6">
-                <h3>Explore genome metadata with <code>dataformat</code></h3>
-                <p>The companion tool <code>dataformat</code> helps you extract structured information from NCBI datasets:</p>
-                <pre><code># Get a TSV summary of the human GRCh38 genome metadata
-datasets summary genome accession GCF_000001405.40 | \
-    dataformat tsv genome --fields organism-name,assminfo-name,assminfo-level,assmstats-total-sequence-len,annotinfo-gene-count
-
-# Fields you can query:
-# organism-name, assminfo-name, assminfo-level,
-# assmstats-total-sequence-len, assmstats-contig-n50,
-# annotinfo-gene-count, annotinfo-protein-count</code></pre>
             </div>
 
             <!-- ===== Option B: Ensembl FTP ===== -->
@@ -619,15 +595,6 @@ seqkit stats raw_data/$(head -1 raw_data/SRR_Acc_List.txt)_1.fastq.gz</code></pr
                 </details>
             </div>
 
-            <div class="card">
-                <h3>Exercise 4: Metadata exploration</h3>
-                <p>Use the <code>dataformat</code> tool to find out how many protein-coding genes are annotated in the GRCh38 genome on NCBI.</p>
-                <details>
-                    <summary>Hint</summary>
-                    <pre><code>datasets summary genome accession GCF_000001405.40 | \
-    dataformat tsv genome --fields annotinfo-gene-count,annotinfo-protein-count</code></pre>
-                </details>
-            </div>
         </section>
 
         <section>
@@ -639,7 +606,6 @@ seqkit stats raw_data/$(head -1 raw_data/SRR_Acc_List.txt)_1.fastq.gz</code></pr
                 <li>Learned to batch-download multiple SRA files using an accession list file</li>
                 <li>Copied raw GSE136366 FASTQs from the <strong>shared course directory</strong> (Option A) — and learned how to download from <strong>NCBI SRA</strong> using <code>prefetch</code>/<code>fasterq-dump</code> (Option B)</li>
                 <li>Downloaded a reference genome using <strong>NCBI <code>datasets</code></strong> CLI (Option A) or <strong>Ensembl FTP</strong> using <code>wget</code> (Option B)</li>
-                <li>Explored genome metadata using <code>dataformat</code></li>
                 <li>Used <code>seqkit</code> to summarize FASTQ data</li>
                 <li>Organized all data with a clear directory structure on Ibex (<code>raw_data/</code>, <code>chr11_raw_data/</code>, <code>trimmed/</code>, etc.)</li>
             </ul>
