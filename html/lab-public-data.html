@@ -191,7 +191,18 @@ ls -la</code></pre>
             </div>
 
             <div class="step" data-step="2">
-                <h3>Test: Download GSE136366 with prefetch and convert to FASTQ</h3>
+                <h3 style="margin-top:2rem; padding:0.5rem 1rem; background:#e8f8e8; border-left:4px solid #4CAF50;">Option A: Copy from the shared course directory (recommended)</h3>
+                <p>The full GSE136366 FASTQs are already available on Ibex at a shared course path. Files are already named with the <code>KO_1_</code>/<code>WT_1_</code> prefix convention — no download or renaming needed just make a link to the files.</p>
+                <pre><code>ln -s /biocorelab/BIX/resources/datasets/rnaseq/GSE136366/raw_fastq/*.fastq.gz /ibex/user/$USER/workshop/raw_data/
+
+ls -lh /ibex/user/$USER/workshop/raw_data/</code></pre>
+                <div class="info-box tip">
+                    <p><strong>Skip to Part 4</strong>. The NCBI download option below is provided for reference — it demonstrates how to retrieve public RNA-seq data from scratch, which is the workflow you would use for any dataset not already available on Ibex.</p>
+                </div>
+
+                <details><summary><h3 style="display:inline;margin-top:2rem; padding:0.5rem 1rem; background:#e8f4fd; border-left:4px solid #2196F3;">Option B: Download a full dataset from NCBI using <code>prefetch</code></h3></summary>
+                
+                <h3>Download GSE136366 with prefetch and convert to FASTQ</h3>
                 <p>Pass the GEO accession directly to <code>prefetch</code> — it resolves all associated SRR runs automatically and downloads them into a <code>GSE136366/</code> directory.</p>
                 <pre><code># Download all runs for GSE136366 in one command (takes too long)
 prefetch GSE136366
@@ -205,19 +216,7 @@ done</code></pre>
                     <strong>Storage tip</strong>
                     <p>Compress FASTQ files immediately after conversion (<code>gzip</code>). Raw FASTQ files are very large; gzip reduces their size 4–5×. Use <code>/ibex/user/$USER</code> for all large files — home directories have limited quota.</p>
                 </div>
-            </div>
-
-            <div class="step" data-step="3">
-                <h3 style="margin-top:2rem; padding:0.5rem 1rem; background:#e8f8e8; border-left:4px solid #4CAF50;">Option A: Copy from the shared course directory (recommended)</h3>
-                <p>The full GSE136366 FASTQs are already available on Ibex at a shared course path. Files are already named with the <code>KO_1_</code>/<code>WT_1_</code> prefix convention — no download or renaming needed.</p>
-                <pre><code>cp /biocorelab/BIX/resources/datasets/rnaseq/GSE136366/raw_fastq/*.fastq.gz /ibex/user/$USER/workshop/raw_data/
-
-ls -lh /ibex/user/$USER/workshop/raw_data/</code></pre>
-                <div class="info-box tip">
-                    <p>Once the copy completes, <strong>skip to Part 4</strong>. The NCBI download option below is provided for reference — it demonstrates how to retrieve public RNA-seq data from scratch, which is the workflow you would use for any dataset not already available on Ibex.</p>
-                </div>
-
-                <h3 style="margin-top:2rem; padding:0.5rem 1rem; background:#e8f4fd; border-left:4px solid #2196F3;">Option B: Download the full dataset from NCBI using <code>prefetch</code> (for learning)</h3>
+                
                 <h3>Submit the download as an sbatch job (recommended)</h3>
                 <p>Downloading and converting all GSE136366 samples can take several hours. Running this interactively risks losing work if your SSH session disconnects. Instead, submit it as a <strong>SLURM batch job</strong> on Ibex using <code>sbatch</code>.</p>
 
@@ -321,7 +320,7 @@ scancel JOBID</code></pre>
                 </div>
 
             </div>
-
+        </details>
         </section>
 
         <section id="part4">
