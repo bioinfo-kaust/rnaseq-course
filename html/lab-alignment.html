@@ -27,9 +27,10 @@
             <a href="#part1"><span class="part-num">Part 1</span><span class="part-label">Setup</span></a>
             <a href="#part2"><span class="part-num">Part 2</span><span class="part-label">Reference &amp; STAR Index</span></a>
             <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">STAR Alignment</span></a>
-            <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">BAM Post-processing</span></a>
-            <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">Alignment QC</span></a>
-            <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">IGV Visualization</span></a>
+            <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">BAM Format</span></a>
+            <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">BAM Post-processing</span></a>
+            <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">Alignment QC</span></a>
+            <a href="#part7"><span class="part-num">Part 7</span><span class="part-label">IGV Visualization</span></a>
         </div>
         <p>In this lab, you will align the <strong>trimmed chromosome 11-filtered</strong> paired-end reads from GSE136366 (a TDP-43 RNA-seq study in human cells) to the <strong>chromosome 11 reference</strong> using STAR. You will then post-process and index the resulting BAM files, assess alignment quality, and visualize the alignments in IGV.</p>
 
@@ -242,10 +243,71 @@ ls -lh aligned/KO_1_SRR10045016/</code></pre>
         </section>
 
         <!-- ================================= -->
-        <!-- Part 4: BAM Post-processing        -->
+        <!-- Part 4: BAM Format Overview       -->
         <!-- ================================= -->
         <section id="part4">
-            <h2>Part 4: BAM Post-processing</h2>
+            <h2>Part 4: BAM Format Overview</h2>
+            <p>Before post-processing your alignments, take a moment to understand what a BAM file actually contains. BAM (Binary Alignment Map) is the compressed binary version of SAM (Sequence Alignment Map) — it is the standard output of alignment tools like STAR and the central file format for all downstream analysis.</p>
+
+            <div class="info-box note">
+                <strong>SAM/BAM Structure</strong>
+                <ul>
+                    <li><strong>Header section</strong> (lines starting with <code>@</code>): <code>@HD</code> (format/sort order), <code>@SQ</code> (reference sequence names and lengths), <code>@RG</code> (read group metadata), <code>@PG</code> (programs and command lines used)</li>
+                    <li><strong>Alignment section</strong>: one line per read, 11 mandatory tab-separated fields — read name, FLAG, chromosome, position (1-based), MAPQ, CIGAR string, mate chromosome, mate position, insert size, read sequence, and base qualities</li>
+                    <li><strong>CIGAR string</strong>: encodes the alignment operation per base — <code>M</code> = match/mismatch, <code>N</code> = intron skip (splice junction), <code>I</code>/<code>D</code> = insertion/deletion, <code>S</code> = soft clip, <code>H</code> = hard clip</li>
+                    <li><strong>FLAG field</strong>: a bitwise integer encoding read properties — paired, properly paired, unmapped, mate unmapped, reverse strand, first/second in pair, secondary/supplementary alignment, duplicate</li>
+                    <li><strong>Optional tags</strong>: tool-specific key:type:value fields appended after the mandatory columns — e.g. <code>NH:i:1</code> (number of alignments), <code>AS:i:...</code> (alignment score), <code>MD:Z:...</code> (mismatch positions)</li>
+                </ul>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Inspect a BAM file from your alignment output</h3>
+                <p>Use the BAM you produced in Part 3 to explore the format directly.</p>
+                <pre><code>cd /ibex/user/$USER/workshop
+
+BAM=aligned/KO_1_SRR10045016/Aligned.sortedByCoord.out.bam
+
+# View the full BAM header (@HD, @SQ, @PG lines)
+samtools view -H $BAM
+
+# View the first 5 alignment records in SAM text format
+samtools view $BAM | head -5
+
+# Summary alignment statistics
+samtools flagstat $BAM
+
+# Count all reads in the BAM
+samtools view -c $BAM
+
+# Count only mapped reads (exclude FLAG bit 0x4 = unmapped)
+samtools view -c -F 4 $BAM</code></pre>
+                <div class="info-box tip">
+                    <strong>Decode any FLAG value</strong>
+                    <p>Use the Broad Institute's interactive FLAG decoder: <a href="https://broadinstitute.github.io/picard/explain-flags.html" target="_blank" rel="noopener">broadinstitute.github.io/picard/explain-flags.html</a> — paste any integer FLAG and it lists what each bit means.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Examine the CIGAR string and optional tags</h3>
+                <p>Pick one alignment line and decode its CIGAR string to understand how the read spans a splice junction.</p>
+                <pre><code># Show one alignment record with all optional tags, formatted for readability
+samtools view $BAM | head -1 | tr '\t' '\n' | cat -n
+
+# Find reads that span a splice junction (N in CIGAR = intron skip)
+samtools view $BAM | awk '$6 ~ /N/' | head -3</code></pre>
+                <div class="info-box note">
+                    <strong>Reading a CIGAR string</strong>
+                    <p>A CIGAR like <code>50M400N50M</code> means: 50 bases match the genome, then 400 bases are skipped (an intron), then 50 more bases match. This is how STAR encodes a read that spans a splice junction. The total length of M + I + S + = + X operations must equal the read length.</p>
+                </div>
+            </div>
+        </section>
+
+
+        <!-- ================================= -->
+        <!-- Part 5: BAM Post-processing        -->
+        <!-- ================================= -->
+        <section id="part5">
+            <h2>Part 5: BAM Post-processing</h2>
             <p>After alignment, BAM files need to be indexed for fast random access, and PCR duplicates should be flagged using Picard MarkDuplicates. These steps operate on the chr11 BAMs produced in Part 3 — the commands are identical to a full-scale workflow.</p>
 
             <div class="step" data-step="1">
@@ -293,10 +355,10 @@ cat aligned/KO_1_SRR10045016/dup_metrics.txt</code></pre>
         </section>
 
         <!-- ============================== -->
-        <!-- Part 5: Alignment QC           -->
+        <!-- Part 6: Alignment QC           -->
         <!-- ============================== -->
-        <section id="part5">
-            <h2>Part 5: Alignment Quality Control</h2>
+        <section id="part6">
+            <h2>Part 6: Alignment Quality Control</h2>
             <p>Before proceeding to quantification, assess the quality of the alignments to make sure the data is suitable for downstream analysis. These steps work directly on the chr11 BAMs — alignment stats and log inspection complete in seconds.</p>
 
             <div class="step" data-step="1">
@@ -372,10 +434,10 @@ done</code></pre>
         </section>
 
         <!-- ================================ -->
-        <!-- Part 6: Visualize in IGV         -->
+        <!-- Part 7: Visualize in IGV         -->
         <!-- ================================ -->
-        <section id="part6">
-            <h2>Part 6: [Optional] Visualize Alignments in IGV</h2>
+        <section id="part7">
+            <h2>Part 7: [Optional] Visualize Alignments in IGV</h2>
             <p>The Integrative Genomics Viewer (IGV) lets you visually inspect read alignments at any genomic locus — essential for sanity-checking results and exploring specific genes of interest. Because these BAMs contain chr11-only reads, coverage is lower than a full-genome dataset but gene structure, splice junctions, and strand orientation are clearly visible for chr11 genes.</p>
 
             <div class="step" data-step="1">
@@ -441,7 +503,7 @@ TARDBP
             <div class="card">
                 <h3>Exercise 1: Unique Mapping Rate</h3>
                 <p>What percentage of reads mapped uniquely for each sample? Read the STAR <code>Log.final.out</code> files for all samples and compare the results.</p>
-                <p><em>Hint: Use the loop from Part 5, Step 2 to grep the "Uniquely mapped reads %" field from each sample's log. Are there any samples with notably lower mapping rates?</em></p>
+                <p><em>Hint: Use the loop from Part 6, Step 2 to grep the "Uniquely mapped reads %" field from each sample's log. Are there any samples with notably lower mapping rates?</em></p>
             </div>
 
             <div class="card">
@@ -475,8 +537,8 @@ done</code></pre>
             <h2>Summary</h2>
             <p>In this lab, you have:</p>
             <ul>
-                <li>Built a STAR genome index for GRCh38 using a SLURM batch job</li>
-                <li>Aligned all GSE136366 paired-end FASTQ samples to GRCh38 using a SLURM array job</li>
+                <li>Built a STAR genome index for chr11 and aligned all GSE136366 paired-end samples</li>
+                <li>Explored the <strong>BAM/SAM format</strong>: header sections, alignment fields, CIGAR strings, FLAG values, and optional tags using <code>samtools</code></li>
                 <li>Indexed BAM files with <code>samtools index</code> for fast random access</li>
                 <li>Marked PCR duplicates with <code>picard MarkDuplicates</code> and inspected duplication rates</li>
                 <li>Assessed alignment quality using <code>samtools flagstat</code> and the STAR <code>Log.final.out</code> summary</li>

@@ -28,15 +28,19 @@
             <a href="#Get sample data"><span class="part-num">Part 2</span><span class="part-label">Sample Data</span></a>
             <a href="#fasta"><span class="part-num">Part 3</span><span class="part-label">FASTA Files</span></a>
             <a href="#fastq"><span class="part-num">Part 4</span><span class="part-label">FASTQ Files</span></a>
-            <a href="#bam"><span class="part-num">Part 5</span><span class="part-label">BAM Files</span></a>
+        </div>
+
+        <div class="info-box tip">
+            <strong>Linux Command Reference</strong>
+            <p>Not sure about a command? Open the <a href="setup.html#cheatsheet">Linux Command Line Cheatsheet</a> on the Setup page — it covers navigation, file operations, searching, pipes, and more. Keep it open in another tab throughout the lab.</p>
         </div>
 
         <div class="info-box note">
             <strong>Learning Objectives</strong>
             <ul>
-                <li>Explore FASTA, FASTQ, and BAM files using bioinformatics tools</li>
+                <li>Explore FASTA and FASTQ files using bioinformatics tools</li>
                 <li>Understand the structure and purpose of each genomic file format</li>
-                <li>Use seqkit, and samtools for basic file inspection</li>
+                <li>Use <code>seqkit</code> for sequence file inspection</li>
                 <li>Debug common issues with corrupted sequencing files</li>
             </ul>
         </div>
@@ -313,82 +317,6 @@ seqkit stats genome_data/sequences/sample_*.fq</code></pre>
             </div>
         </section>
 
-        <!-- ============================ -->
-        <!-- Part 5: Exploring BAM Files  -->
-        <!-- ============================ -->
-        <section id="bam">
-            <h2>Part 5: Exploring BAM Files</h2>
-            <p>BAM (Binary Alignment Map) is the compressed binary version of SAM (Sequence Alignment Map). It stores read alignments against a reference genome and is the standard output of alignment tools like STAR and BWA.</p>
-
-            <div class="step" data-step="1">
-                <h3>View the BAM Header</h3>
-                <pre><code>#Load samtools tool
-module load samtools
-
-# View the header (reference sequences and program info)
-samtools view -H genome_data/bam/sample.bam | head -20</code></pre>
-                <div class="info-box note">
-                    <strong>BAM Header Sections</strong>
-                    <ul>
-                        <li><code>@HD</code> -- Header line with format version and sort order</li>
-                        <li><code>@SQ</code> -- Reference sequence names and lengths</li>
-                        <li><code>@RG</code> -- Read group information (sample, library, platform)</li>
-                        <li><code>@PG</code> -- Programs used to create/process the file</li>
-                    </ul>
-                </div>
-            </div>
-
-            <div class="step" data-step="2">
-                <h3>View Aligned Reads</h3>
-                <pre><code># View the first 5 aligned reads (SAM format)
-samtools view genome_data/bam/sample.bam | head -5</code></pre>
-                <div class="info-box note">
-                    <strong>SAM Format: Key Columns</strong>
-                    <table class="schedule-table">
-                        <tr><th>Column</th><th>Field</th><th>Description</th></tr>
-                        <tr><td>1</td><td>QNAME</td><td>Read name</td></tr>
-                        <tr><td>2</td><td>FLAG</td><td>Bitwise flag (encodes read properties)</td></tr>
-                        <tr><td>3</td><td>RNAME</td><td>Reference sequence name</td></tr>
-                        <tr><td>4</td><td>POS</td><td>1-based leftmost mapping position</td></tr>
-                        <tr><td>5</td><td>MAPQ</td><td>Mapping quality</td></tr>
-                        <tr><td>6</td><td>CIGAR</td><td>Alignment description (matches, insertions, deletions)</td></tr>
-                        <tr><td>10</td><td>SEQ</td><td>Read sequence</td></tr>
-                        <tr><td>11</td><td>QUAL</td><td>Base quality scores</td></tr>
-                    </table>
-                </div>
-            </div>
-
-            <div class="step" data-step="3">
-                <h3>Alignment Summary Statistics</h3>
-                <pre><code># Get a comprehensive alignment summary
-samtools flagstat genome_data/bam/sample.bam
-
-# Count total reads in the BAM file
-samtools view -c genome_data/bam/sample.bam
-
-# Count only properly paired reads (FLAG bit 0x2)
-samtools view -c -f 2 genome_data/bam/sample.bam</code></pre>
-            </div>
-
-            <div class="step" data-step="4">
-                <h3>Understanding SAM Flags</h3>
-                <p>SAM flags are bitwise values that encode multiple properties of a read in a single number. For example, FLAG 99 means the read is paired, mapped in a proper pair, the mate is on the reverse strand, and this is the first read in the pair.</p>
-                <pre><code># Count reads by their flag values
-samtools view genome_data/bam/sample.bam | cut -f2 | sort | uniq -c | sort -rn | head -10
-
-# Filter for unmapped reads (FLAG bit 0x4)
-samtools view -c -f 4 genome_data/bam/sample.bam
-
-# Filter for mapped reads (exclude unmapped)
-samtools view -c -F 4 genome_data/bam/sample.bam</code></pre>
-                <div class="info-box tip">
-                    <strong>Tip: Decoding SAM Flags</strong>
-                    <p>Use the Broad Institute's interactive tool to decode any SAM flag value: <a href="https://broadinstitute.github.io/picard/explain-flags.html" target="_blank">https://broadinstitute.github.io/picard/explain-flags.html</a></p>
-                </div>
-            </div>
-        </section>
-
-
         <!-- ============ -->
         <!-- Exercises     -->
         <!-- ============ -->
@@ -409,13 +337,7 @@ samtools view -c -F 4 genome_data/bam/sample.bam</code></pre>
             </div>
 
             <div class="card">
-                <h3>Exercise 3: Mapped Reads</h3>
-                <p>How many mapped reads are in <code>genome_data/bam/sample.bam</code>?</p>
-                <p><em>Hint: Use <code>samtools flagstat</code> or <code>samtools view -c -F 4</code></em></p>
-            </div>
-
-            <div class="card">
-                <h3>Exercise 4: Pattern Search</h3>
+                <h3>Exercise 3: Pattern Search</h3>
                 <p>Find all reads in <code>genome_data/fastq/sample_R1.fastq</code> that contain the pattern "TTGC". How many are there?</p>
                 <p><em>Hint: Use <code>seqkit grep -s -r -p "TTGC"</code> and pipe to <code>seqkit stats</code></em></p>
             </div>
@@ -431,7 +353,6 @@ samtools view -c -F 4 genome_data/bam/sample.bam</code></pre>
                 <li>Loaded bioinformatics modules using the HPC module system</li>
                 <li>Explored <strong>FASTA</strong> files using <code>seqkit</code> to view sequences, headers, and statistics</li>
                 <li>Explored <strong>FASTQ</strong> files, understood the 4-line format, and examined paired-end reads</li>
-                <li>Explored <strong>BAM/SAM</strong> files using <code>samtools</code> to view headers, alignments, and flag statistics</li>
                 <li>Practiced debugging with intentionally broken FASTQ files</li>
             </ul>
             <p><strong>Next:</strong> <a href="lab-public-data.html">Lab 2: Public Data Retrieval</a></p>

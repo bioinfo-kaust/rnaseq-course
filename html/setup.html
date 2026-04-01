@@ -32,9 +32,9 @@
             </div>
             <h2>Prerequisites</h2>
             <ul>
-                <li>An active <strong>Ibex HPC account</strong> at KAUST</li>
+                <li>An active <strong>Ibex HPC account. Apply</strong> through <strong><a href="https://my.ibex.kaust.edu.sa/v2/teams" target="_blank" rel="noopener">Ibex HPC portal</a></strong></li>
                 <li>A laptop with a terminal application (macOS Terminal, Linux shell, or Windows with WSL2)</li>
-                <li>Basic familiarity with the Linux command line</li>
+                <li>Familiarity with the Linux command line</li>
             </ul>
 
             <h2>Before You Begin — Check Your Ibex Access</h2>
@@ -58,7 +58,7 @@ cat slurm-JOBID.out</code></pre>
             </div>
 
             <h3>2. Check available disk space</h3>
-            <p>The course dataset and conda environment require at least <strong>100 GB</strong> of free space in your Ibex home directory.</p>
+            <p>The course dataset and conda environment require at least <strong>200 GB</strong> of free space in your Ibex home directory.</p>
             <div class="code-container">
                 <pre><code># Check your current usage and quota on /ibex/user
 quota -s /ibex/user/$USER
@@ -217,6 +217,32 @@ rsync -avz --progress \
         </section>
 
         <!-- ================================================ -->
+        <!-- IGV on local machine                             -->
+        <!-- ================================================ -->
+        <section>
+            <h2>IGV — Install on Your Local Computer</h2>
+            <p>The Integrative Genomics Viewer (IGV) is a desktop application for visualizing BAM files and genomic data. Install it on your <strong>laptop</strong> before Lab 4.</p>
+
+            <h3>Download and install</h3>
+            <ol>
+                <li>Go to <a href="https://igv.org/doc/desktop/" target="_blank" rel="noopener">igv.org/doc/desktop</a></li>
+                <li>Download the installer for your operating system:
+                    <ul>
+                        <li><strong>macOS:</strong> download the <code>.app</code> zip, unzip, and drag IGV to your Applications folder</li>
+                        <li><strong>Windows:</strong> download the <code>.zip</code>, unzip, and run <code>igv.bat</code></li>
+                        <li><strong>Linux:</strong> download the <code>.zip</code>, unzip, and run <code>igv.sh</code></li>
+                    </ul>
+                </li>
+                <li>Launch IGV and verify it opens. On first launch it will download a small genome index — an internet connection is required.</li>
+            </ol>
+
+            <div class="info-box note">
+                <strong>Java requirement</strong>
+                <p>The IGV installer bundles its own Java runtime — you do not need to install Java separately. If you use the "command line" version instead, Java 11+ is required.</p>
+            </div>
+        </section>
+
+        <!-- ================================================ -->
         <!-- Conda environment on Ibex                        -->
         <!-- ================================================ -->
         <section>
@@ -228,17 +254,18 @@ rsync -avz --progress \
                 <p>Connect to Ibex first, then follow the steps below in your home directory.</p>
             </div>
 
-            <h3>Step 1 — Install Miniconda - Skip if conda is already installed</h3>
+            <h3>Step 1 — Install Miniforge - Skip if conda is already installed</h3>
+            <p>Miniforge is a minimal conda installer that uses the community-maintained <code>conda-forge</code> channel by default and includes <code>mamba</code> (a fast dependency solver) out of the box.</p>
             <div class="code-container">
-                <pre><code># Download the Miniconda installer for Linux (64-bit)
-wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh \
-    -O ~/miniconda3_install.sh
+                <pre><code># Download the Miniforge installer for Linux (64-bit)
+wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
+    -O ~/miniforge3_install.sh
 
 # Run the installer in batch mode (no interactive prompts)
-bash ~/miniconda3_install.sh -b -p ~/miniconda3
+bash ~/miniforge3_install.sh -b -p ~/miniforge3
 
 # Activate conda for your current shell session
-source ~/miniconda3/bin/activate
+source ~/miniforge3/bin/activate
 
 # Initialise conda so it loads automatically in future sessions
 conda init bash
@@ -246,22 +273,12 @@ conda init bash
 # Reload your shell config
 source ~/.bashrc
 
-# Verify
-conda --version</code></pre>
-                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
-            </div>
-
-            <h3>Step 2 — Install mamba</h3>
-            <p>Mamba is a faster drop-in replacement for the <code>conda</code> solver:</p>
-            <div class="code-container">
-                <pre><code>conda install -n base -c conda-forge mamba -y
-
-# Verify
+# Verify (mamba is included with Miniforge)
 mamba --version</code></pre>
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
 
-            <h3>Step 3 — Create the <code>rnaseq</code> environment</h3>
+            <h3>Step 2 — Create the <code>rnaseq</code> environment</h3>
             <p>This single environment includes JupyterLab, Python analysis packages, and R/Bioconductor packages for all course labs:</p>
             <div class="code-container">
                 <pre><code>mamba create -n rnaseq -c conda-forge -c bioconda \
@@ -326,7 +343,7 @@ mamba --version</code></pre>
                 </table>
             </div>
 
-            <h3>Step 4 — Activate and verify</h3>
+            <h3>Step 3 — Activate and verify</h3>
             <div class="code-container">
                 <pre><code>conda activate rnaseq
 

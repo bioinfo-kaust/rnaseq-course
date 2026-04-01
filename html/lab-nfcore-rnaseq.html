@@ -32,11 +32,11 @@
             <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">Inspect Outputs</span></a>
         </div>
 
-        <p>In this lab you will run the <strong>nf-core/rnaseq</strong> pipeline on the KAUST Ibex HPC cluster using the <strong>full GSE136366 dataset</strong>. The pipeline automates the full preprocessing and quantification workflow — from raw reads to expression matrices — in a reproducible and scalable way.</p>
+        <p>In this lab you will run the <strong>nf-core/rnaseq</strong> pipeline on the KAUST Ibex HPC cluster using the <strong>chr11-filtered GSE136366 reads</strong>. The pipeline automates the full preprocessing and quantification workflow — from raw reads to expression matrices — in a reproducible and scalable way.</p>
 
         <div class="info-box tip">
-            <strong>From here on: full dataset</strong>
-            <p>Labs 3–5 used chromosome 11-filtered reads to keep interactive runtimes short. Starting with this lab, we switch to the <strong>complete GSE136366 dataset</strong> (all chromosomes, ~20–40 M reads per sample). nf-core/rnaseq manages its own SLURM job scheduling, so the full dataset runs efficiently without manual intervention — just submit one batch job and wait for results.</p>
+            <strong>Using chr11-filtered data in this lab</strong>
+            <p>Like Labs 3–5, this lab uses the <strong>chromosome 11-filtered GSE136366 reads</strong> (~3–4 M read pairs per sample). nf-core/rnaseq manages its own SLURM job scheduling, so we pass the chr11 FASTA and GTF directly instead of the full-genome KAUST profile registry entry. All pipeline steps are identical to a full-scale run — only the reference scope differs. The full-scale run would simply replace the <code>--fasta</code>/<code>--gtf</code> flags with <code>--genome GRCh38.p14</code>.</p>
         </div>
 
         <div class="info-box note">
@@ -139,26 +139,27 @@ pwd</code></pre>
 
             <div class="step" data-step="1">
                 <h3>Example samplesheet structure</h3>
-                <p>Below is an example showing two samples from GSE136366. Replace <code>USER</code> with your Ibex username:</p>
+                <p>Below is an example showing two samples from GSE136366. Replace <code>YOUR_USERNAME</code> with your Ibex username:</p>
                 <pre><code>sample,fastq_1,fastq_2,strandedness
-SRR10009250,/ibex/user/YOUR_USERNAME/workshop/raw_data/SRR10009250_1.fastq.gz,/ibex/user/YOUR_USERNAME/workshop/raw_data/SRR10009250_2.fastq.gz,auto
-SRR10009251,/ibex/user/YOUR_USERNAME/workshop/raw_data/SRR10009251_1.fastq.gz,/ibex/user/YOUR_USERNAME/workshop/raw_data/SRR10009251_2.fastq.gz,auto</code></pre>
+KO_1_SRR10045016,/ibex/user/YOUR_USERNAME/workshop/chr11_raw_data/KO_1_SRR10045016_1.fastq.gz,/ibex/user/YOUR_USERNAME/workshop/chr11_raw_data/KO_1_SRR10045016_2.fastq.gz,auto
+KO_2_SRR10045017,/ibex/user/YOUR_USERNAME/workshop/chr11_raw_data/KO_2_SRR10045017_1.fastq.gz,/ibex/user/YOUR_USERNAME/workshop/chr11_raw_data/KO_2_SRR10045017_2.fastq.gz,auto</code></pre>
             </div>
 
             <div class="step" data-step="2">
                 <h3>Generate the samplesheet automatically with a bash script</h3>
-                <p>Rather than typing each row manually, use this script to generate the samplesheet from the accession list file you created in Lab 2:</p>
+                <p>Rather than typing each row manually, use this script to generate the samplesheet for all six GSE136366 chr11-filtered samples:</p>
                 <pre><code>cd /ibex/user/$USER/workshop/nfcore_rnaseq
 
-RAWDIR="/ibex/user/$USER/workshop/raw_data"
+RAWDIR="/ibex/user/$USER/workshop/chr11_raw_data"
+SAMPLES="KO_1_SRR10045016 KO_2_SRR10045017 KO_3_SRR10045018 WT_1_SRR10045019 WT_2_SRR10045020 WT_3_SRR10045021"
 
 # Write the CSV header
 echo "sample,fastq_1,fastq_2,strandedness" > samplesheet.csv
 
-# Loop over each SRR accession and append a row
-while read srr; do
-    echo "${srr},${RAWDIR}/${srr}_1.fastq.gz,${RAWDIR}/${srr}_2.fastq.gz,auto"
-done < $RAWDIR/SRR_Acc_List.txt >> samplesheet.csv
+# Add one row per sample
+for sample in $SAMPLES; do
+    echo "${sample},${RAWDIR}/${sample}_1.fastq.gz,${RAWDIR}/${sample}_2.fastq.gz,auto"
+done >> samplesheet.csv
 
 # Review the generated samplesheet
 cat samplesheet.csv</code></pre>
@@ -180,13 +181,14 @@ cat samplesheet.csv</code></pre>
                     <tr><td>Container runtime</td><td>Singularity</td><td>All tools run inside Singularity containers — no manual <code>module load</code> needed per process</td></tr>
                     <tr><td>Container library</td><td>Central shared library</td><td>Pre-downloaded images shared across all users; new images go to your personal cache</td></tr>
                     <tr><td>Resource limits</td><td>Ibex-tuned defaults</td><td>Per-process CPU, memory, and time limits sized for Ibex compute nodes</td></tr>
-                    <tr><td>Reference genomes</td><td><code>--genome GRCh38.p14</code></td><td>Resolves FASTA, GTF, STAR index, and Salmon index from paths already on Ibex — no download needed</td></tr>
+                    <tr><td>Reference genomes</td><td><code>--fasta / --gtf</code></td><td>Pass explicit chr11 FASTA and GTF paths; nf-core builds STAR and Salmon indexes automatically</td></tr>
                 </table>
             </div>
 
             <div class="info-box tip">
                 <strong>Using the KAUST genome registry</strong>
-                <p>The KAUST profile includes a genome registry with reference files for common organisms already available on Ibex. For human data, pass <code>--genome GRCh38.p14</code> — this resolves the reference genome FASTA, GTF annotation, and pre-built STAR/Salmon indexes from shared paths on Ibex. You do not need to download or specify reference files manually.</p>
+                <p>The KAUST profile includes a genome registry with reference files for common organisms already available on Ibex. For human data, you can pass <code>--genome GRCh38.p14</code> — this resolves the reference genome FASTA, GTF annotation, and pre-built STAR/Salmon indexes from shared paths on Ibex without needing to download or specify reference files manually.</p>
+                <p>For this chr11 lab, we pass explicit <code>--fasta</code> and <code>--gtf</code> paths pointing to the chromosome 11-only reference files. nf-core/rnaseq will build the STAR and Salmon indexes automatically from these files. The full-genome equivalent would simply replace those two flags with <code>--genome GRCh38.p14</code>.</p>
                 <p>The KAUST profile also includes a dedicated <code>rnaseq</code> sub-profile with tuned defaults for the nf-core/rnaseq pipeline specifically.</p>
             </div>
         </section>
@@ -205,10 +207,13 @@ cat samplesheet.csv</code></pre>
 nextflow run nf-core/rnaseq \
     --input samplesheet.csv \
     --outdir results \
-    --genome GRCh38.p14 \
+    --fasta /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.dna.chromosome.11.fa \
+    --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
     --aligner star_salmon \
     --pseudo_aligner salmon \
     --trimmer fastp \
+    --genome_size 135086622 \
+    --star_index_bases 11 \
     -profile kaust \
     -resume</code></pre>
             </div>
@@ -219,7 +224,10 @@ nextflow run nf-core/rnaseq \
                     <tr><th>Parameter</th><th>Value used</th><th>Description</th></tr>
                     <tr><td><code>--input</code></td><td><code>samplesheet.csv</code></td><td>Path to the CSV samplesheet you created</td></tr>
                     <tr><td><code>--outdir</code></td><td><code>results</code></td><td>Directory where all output files will be written</td></tr>
-                    <tr><td><code>--genome</code></td><td><code>GRCh38.p14</code></td><td>Reference genome key from the KAUST genome registry — resolves FASTA, GTF, and pre-built indexes automatically</td></tr>
+                    <tr><td><code>--fasta</code></td><td>chr11 FASTA path</td><td>Path to the chromosome 11 reference genome FASTA file</td></tr>
+                    <tr><td><code>--gtf</code></td><td>chr11 GTF path</td><td>Path to the chromosome 11 GTF annotation file; used for STAR index building and gene-level quantification</td></tr>
+                    <tr><td><code>--genome_size</code></td><td><code>135086622</code></td><td>Effective genome size for chromosome 11 (~135 Mb); used by some QC tools</td></tr>
+                    <tr><td><code>--star_index_bases</code></td><td><code>11</code></td><td>STAR genomeSAindexNbases parameter, reduced for the smaller chr11 genome</td></tr>
                     <tr><td><code>--aligner</code></td><td><code>star_salmon</code></td><td>Align with STAR, then quantify with Salmon in alignment-based mode</td></tr>
                     <tr><td><code>--pseudo_aligner</code></td><td><code>salmon</code></td><td>Also run Salmon in pseudo-alignment mode directly from reads</td></tr>
                     <tr><td><code>--trimmer</code></td><td><code>fastp</code></td><td>Use fastp for adapter trimming (alternative: <code>trimgalore</code>)</td></tr>
@@ -259,10 +267,13 @@ export NXF_SINGULARITY_CACHEDIR=/ibex/user/$USER/singularity_cache
 nextflow run nf-core/rnaseq \
     --input samplesheet.csv \
     --outdir results \
-    --genome GRCh38.p14 \
+    --fasta /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.dna.chromosome.11.fa \
+    --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
     --aligner star_salmon \
     --pseudo_aligner salmon \
     --trimmer fastp \
+    --genome_size 135086622 \
+    --star_index_bases 11 \
     -profile kaust \
     -resume
 
@@ -310,9 +321,9 @@ watch -n 5 squeue -u $USER</code></pre>
                 <h3>Understanding the Nextflow progress output</h3>
                 <p>A typical Nextflow run looks like this in the log:</p>
                 <pre><code>executor >  slurm (42)
-[5e/3f2a1b] NFCORE_RNASEQ:RNASEQ:FASTQC_UMITOOLS_TRIMGALORE:FASTQC (SRR10009250) [100%] 6 of 6 ✔
-[a1/88cd2f] NFCORE_RNASEQ:RNASEQ:FASTP (SRR10009250)                              [100%] 6 of 6 ✔
-[b3/12ef45] NFCORE_RNASEQ:RNASEQ:ALIGN_STAR:STAR_ALIGN (SRR10009250)              [ 83%] 5 of 6
+[5e/3f2a1b] NFCORE_RNASEQ:RNASEQ:FASTQC_UMITOOLS_TRIMGALORE:FASTQC (KO_1_SRR10045016) [100%] 6 of 6 ✔
+[a1/88cd2f] NFCORE_RNASEQ:RNASEQ:FASTP (KO_1_SRR10045016)                              [100%] 6 of 6 ✔
+[b3/12ef45] NFCORE_RNASEQ:RNASEQ:ALIGN_STAR:STAR_ALIGN (KO_1_SRR10045016)              [ 83%] 5 of 6
 [--/------] NFCORE_RNASEQ:RNASEQ:QUANTIFY_STAR_SALMON:SALMON_QUANT               -
 ...</code></pre>
                 <div class="info-box note">
@@ -346,8 +357,11 @@ cat work/b3/12ef45*/.command.out
 nextflow run nf-core/rnaseq \
     --input samplesheet.csv \
     --outdir results \
-    --genome GRCh38.p14 \
+    --fasta /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.dna.chromosome.11.fa \
+    --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
     --aligner star_salmon \
+    --genome_size 135086622 \
+    --star_index_bases 11 \
     -profile kaust \
     -resume</code></pre>
             </div>
@@ -382,8 +396,8 @@ ls -lh results/
 # ├── fastqc/          -- FastQC reports for raw reads
 # ├── fastp/           -- Trimming reports and trimmed FASTQs
 # ├── star_salmon/     -- STAR alignments + Salmon quantification
-# │   ├── SRR10009250/ -- Per-sample BAM files and Salmon output
-# │   ├── SRR10009251/
+# │   ├── KO_1_SRR10045016/ -- Per-sample BAM files and Salmon output
+# │   ├── KO_2_SRR10045017/
 # │   ├── ...
 # │   └── salmon/      -- Merged Salmon quant.sf files and count matrices
 # ├── multiqc/         -- Aggregated QC HTML report
@@ -393,22 +407,22 @@ ls -lh results/
             <div class="step" data-step="2">
                 <h3>Explore the STAR alignment output</h3>
                 <pre><code># List output for one sample
-ls -lh results/star_salmon/SRR10009250/
+ls -lh results/star_salmon/KO_1_SRR10045016/
 
 # The BAM file contains the genome alignments
-samtools flagstat results/star_salmon/SRR10009250/SRR10009250.Aligned.sortedByCoord.out.bam
+samtools flagstat results/star_salmon/KO_1_SRR10045016/KO_1_SRR10045016.Aligned.sortedByCoord.out.bam
 
 # View the alignment log (STAR mapping statistics)
-cat results/star_salmon/SRR10009250/Log.final.out</code></pre>
+cat results/star_salmon/KO_1_SRR10045016/Log.final.out</code></pre>
             </div>
 
             <div class="step" data-step="3">
                 <h3>Find the Salmon quantification files</h3>
                 <pre><code># Each sample has a quant.sf file with per-transcript TPM values
-ls results/star_salmon/SRR10009250/
+ls results/star_salmon/KO_1_SRR10045016/
 
 # View the quant.sf header and first few lines
-head results/star_salmon/SRR10009250/quant.sf
+head results/star_salmon/KO_1_SRR10045016/quant.sf
 
 # The merged count matrix across all samples is here:
 ls results/star_salmon/salmon/
@@ -487,7 +501,7 @@ scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_rnaseq/re
             <div class="card">
                 <h3>Exercise 3: Locate Salmon quant.sf Files</h3>
                 <p>Where are the per-sample Salmon <code>quant.sf</code> output files located in the results directory? Write the full path pattern. How many columns does a <code>quant.sf</code> file have, and what does each column represent?</p>
-                <p><em>Hint: Use <code>ls results/star_salmon/SRR*/</code> and <code>head</code> to inspect one file.</em></p>
+                <p><em>Hint: Use <code>ls results/star_salmon/KO_*/</code> and <code>head</code> to inspect one file.</em></p>
             </div>
 
             <div class="card">
@@ -508,7 +522,7 @@ scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_rnaseq/re
                 <li>Configured a Singularity cache directory in scratch space</li>
                 <li>Created a valid CSV samplesheet for all GSE136366 samples</li>
                 <li>Used <code>-profile kaust</code> to activate the KAUST institutional config (SLURM, Singularity, shared genomes)</li>
-                <li>Submitted nf-core/rnaseq as a SLURM batch job using <code>sbatch</code> with <code>--genome GRCh38.p14</code></li>
+                <li>Submitted nf-core/rnaseq as a SLURM batch job using <code>sbatch</code> with explicit <code>--fasta</code> and <code>--gtf</code> chr11 paths</li>
                 <li>Monitored pipeline progress with <code>tail -f</code> and <code>squeue</code></li>
                 <li>Navigated the output directory and located STAR BAMs, Salmon quant files, and the MultiQC report</li>
                 <li>Understood how to diagnose and recover from pipeline failures using <code>-resume</code> and work directory inspection</li>

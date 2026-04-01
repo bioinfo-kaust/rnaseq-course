@@ -350,11 +350,11 @@ R</code></pre>
 
                 <div class="step" data-step="2">
                     <h3>Load required R packages</h3>
-                    <pre><code>library(tximport)
-library(DESeq2)
-library(GenomicFeatures)
-library(ggplot2)
-library(pheatmap)</code></pre>
+                    <pre><code>library(tximport)        # import Salmon/kallisto transcript-level estimates
+library(DESeq2)          # differential expression and VST transformation
+library(GenomicFeatures) # build transcript database from GTF
+library(ggplot2)         # grammar-of-graphics plotting
+library(pheatmap)        # annotated heatmaps</code></pre>
                 </div>
 
                 <div class="step" data-step="3">
@@ -362,8 +362,13 @@ library(pheatmap)</code></pre>
                     <p>tximport needs a two-column data frame mapping each transcript ID (<code>TXNAME</code>) to its gene ID (<code>GENEID</code>) to summarise transcript-level Salmon estimates to gene level.</p>
                     <pre><code>gtf_path &lt;- "/ibex/user/$USER/workshop/references/chr11/GRCh38.chr11.gtf"
 
+# Parse the GTF into a TxDb (transcript database) object
 txdb    &lt;- makeTxDbFromGFF(gtf_path, format = "gtf")
+
+# Extract all transcript IDs as the key set
 k       &lt;- keys(txdb, keytype = "TXNAME")
+
+# Build a two-column data frame: TXNAME → GENEID
 tx2gene &lt;- select(txdb, k, "GENEID", "TXNAME")
 
 head(tx2gene)
@@ -372,23 +377,28 @@ cat("Transcript-to-gene mappings:", nrow(tx2gene), "\n")</code></pre>
 
                 <div class="step" data-step="4">
                     <h3>Import Salmon output with tximport</h3>
-                    <pre><code>WORKSHOP &lt;- paste0("/ibex/user/", Sys.getenv("USER"), "/workshop")
+                    <pre><code># Set base workshop directory using the current user's home path
+WORKSHOP &lt;- paste0("/ibex/user/", Sys.getenv("USER"), "/workshop")
 
+# Define the six sample IDs matching the Salmon output directory names
 sample_ids &lt;- c(
     "KO_1_SRR10045016", "KO_2_SRR10045017", "KO_3_SRR10045018",
     "WT_1_SRR10045019", "WT_2_SRR10045020", "WT_3_SRR10045021"
 )
 
+# Build paths to each sample's quant.sf file
 quant_files &lt;- file.path(WORKSHOP, "counts/salmon", sample_ids, "quant.sf")
-names(quant_files) &lt;- sample_ids
+names(quant_files) &lt;- sample_ids  # names are used as column names in the output matrix
 
-# Confirm all files exist
+# Stop early with a clear error if any file is missing
 stopifnot(all(file.exists(quant_files)))
 
+# Import and summarise from transcript to gene level using the tx2gene map
+# ignoreTxVersion strips the version suffix (e.g. ENST00000123456.3 → ENST00000123456)
 txi &lt;- tximport(
     quant_files,
-    type       = "salmon",
-    tx2gene    = tx2gene,
+    type            = "salmon",
+    tx2gene         = tx2gene,
     ignoreTxVersion = TRUE
 )
 
@@ -402,8 +412,11 @@ cat("Samples:", ncol(txi$counts), "\n")</code></pre>
 
                 <div class="step" data-step="5">
                     <h3>Build sample metadata (coldata)</h3>
-                    <pre><code>condition &lt;- ifelse(grepl("^KO", sample_ids), "knockdown", "control")
+                    <pre><code># Derive condition labels from sample names (KO_* → knockdown, WT_* → control)
+condition &lt;- ifelse(grepl("^KO", sample_ids), "knockdown", "control")
 
+# Build a sample metadata table (coldata) required by DESeq2
+# Levels set so "control" is the reference level in downstream contrasts
 coldata &lt;- data.frame(
     sample    = sample_ids,
     condition = factor(condition, levels = c("control", "knockdown")),
@@ -415,17 +428,21 @@ print(coldata)</code></pre>
 
                 <div class="step" data-step="6">
                     <h3>Create DESeqDataSet and apply variance-stabilising transformation</h3>
-                    <pre><code>dds &lt;- DESeqDataSetFromTximport(
+                    <pre><code># Create a DESeqDataSet from tximport output, incorporating sample metadata
+# design = ~ condition tells DESeq2 which variable to model
+dds &lt;- DESeqDataSetFromTximport(
     txi,
     colData = coldata,
     design  = ~ condition
 )
 
-# Filter low-count genes (keep genes with at least 10 counts in total)
+# Remove genes with very low total counts — they carry no statistical power
+# and slow down downstream steps; ≥10 counts across all samples is a common threshold
 dds &lt;- dds[rowSums(counts(dds)) &gt;= 10, ]
 cat("Genes after low-count filter:", nrow(dds), "\n")
 
-# Apply variance-stabilising transformation (blind = TRUE for QC)
+# Apply variance-stabilising transformation (VST) for visualisation
+# blind = TRUE means the transformation ignores the sample groups (fair QC)
 vsd &lt;- vst(dds, blind = TRUE)
 cat("VST complete\n")</code></pre>
                     <div class="info-box note">
@@ -436,12 +453,17 @@ cat("VST complete\n")</code></pre>
 
                 <div class="step" data-step="7">
                     <h3>PCA plot</h3>
-                    <pre><code>pca_data &lt;- plotPCA(vsd, intgroup = "condition", returnData = TRUE)
+                    <pre><code># Use DESeq2's built-in PCA function; returnData = TRUE gives us the coordinates
+# instead of plotting directly so we can customise with ggplot2
+pca_data &lt;- plotPCA(vsd, intgroup = "condition", returnData = TRUE)
+
+# Extract the percentage of variance explained by each PC for axis labels
 pct_var  &lt;- round(100 * attr(pca_data, "percentVar"), 1)
 
+# Build a customised PCA scatter plot
 p_pca &lt;- ggplot(pca_data, aes(x = PC1, y = PC2, colour = condition, label = name)) +
-    geom_point(size = 4) +
-    geom_text(vjust = -0.8, hjust = 0.5, size = 3.5) +
+    geom_point(size = 4) +                                         # one dot per sample
+    geom_text(vjust = -0.8, hjust = 0.5, size = 3.5) +            # sample labels above dots
     scale_colour_manual(values = c(control = "#0d7377", knockdown = "#e07b4c")) +
     xlab(paste0("PC1: ", pct_var[1], "% variance")) +
     ylab(paste0("PC2: ", pct_var[2], "% variance")) +
@@ -450,35 +472,42 @@ p_pca &lt;- ggplot(pca_data, aes(x = PC1, y = PC2, colour = condition, label = n
 
 print(p_pca)
 
+# Save to a PDF in the results directory
 results_dir &lt;- file.path(WORKSHOP, "results")
-dir.create(results_dir, showWarnings = FALSE)
+dir.create(results_dir, showWarnings = FALSE)  # create if it doesn't exist yet
 ggsave(file.path(results_dir, "pca_plot_R.pdf"), p_pca, width = 7, height = 5)</code></pre>
                 </div>
 
                 <div class="step" data-step="8">
                     <h3>Sample-distance heatmap</h3>
-                    <pre><code># Compute pairwise Euclidean distances on VST matrix
+                    <pre><code># Extract the VST-transformed count matrix (genes × samples)
 vst_mat   &lt;- assay(vsd)
+
+# Transpose so samples are rows, then compute Euclidean distances between samples
 dist_mat  &lt;- dist(t(vst_mat))
+
+# Convert to a symmetric data frame for pheatmap (requires a matrix/data frame input)
 dist_df   &lt;- as.data.frame(as.matrix(dist_mat))
 
-# Annotation for heatmap sidebar
+# Build a one-column annotation data frame for the colour sidebar on rows and columns
 ann_col &lt;- data.frame(
     condition = coldata$condition,
     row.names = rownames(coldata)
 )
+# Define colours for the annotation sidebar to match the PCA plot palette
 ann_colors &lt;- list(condition = c(control = "#0d7377", knockdown = "#e07b4c"))
 
+# Draw the heatmap and save directly to PDF via the filename argument
 pheatmap(
     dist_df,
-    annotation_col  = ann_col,
-    annotation_row  = ann_col,
+    annotation_col    = ann_col,           # colour sidebar on columns
+    annotation_row    = ann_col,           # colour sidebar on rows
     annotation_colors = ann_colors,
-    color           = colorRampPalette(c("#2166ac", "white"))(100),
-    display_numbers = TRUE,
-    number_format   = "%.1f",
-    main            = "Sample-to-sample distances (VST, chr11)",
-    filename        = file.path(results_dir, "sample_distance_heatmap_R.pdf"),
+    color             = colorRampPalette(c("#2166ac", "white"))(100),  # blue→white gradient
+    display_numbers   = TRUE,              # show distance values in each cell
+    number_format     = "%.1f",            # one decimal place
+    main              = "Sample-to-sample distances (VST, chr11)",
+    filename          = file.path(results_dir, "sample_distance_heatmap_R.pdf"),
     width = 8, height = 7
 )</code></pre>
                 </div>

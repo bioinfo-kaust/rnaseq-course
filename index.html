@@ -89,57 +89,63 @@
             <div class="card-grid">
                 <div class="card">
                     <span class="tag">Module 1</span>
-                    <h3>Introduction, Experimental Design &amp; Data Access</h3>
-                    <p>RNA-seq biology and technology overview, experimental design principles, sequencing strategies (bulk, strand-specific, paired-end), HPC/Linux refresher, and downloading public RNA-seq data from SRA/ENA.</p>
+                    <h3>Biological Background</h3>
+                    <p>RNA-seq overview, applications, library preparation, and protocols. Experimental design: replication, batch effects, and statistical power. Sequencing technologies: Illumina, Nanopore, and PacBio SMRT.</p>
                     <a href="html/schedule.html#module1">View Module 1 &rarr;</a>
                 </div>
                 <div class="card">
                     <span class="tag">Module 2</span>
-                    <h3>Read QC &amp; Pre-processing</h3>
-                    <p>Raw data quality assessment with FastQC and MultiQC, adapter trimming and quality filtering with fastp and Trimmomatic.</p>
+                    <h3>Computational Overview &amp; Data Access</h3>
+                    <p>Linux command-line refresher and Ibex HPC orientation. Genomic file formats (FASTA, FASTQ, BAM, GTF). Retrieving reference genomes and public RNA-seq datasets from SRA using sra-toolkit and the NCBI datasets tool.</p>
                     <a href="html/schedule.html#module2">View Module 2 &rarr;</a>
                 </div>
                 <div class="card">
                     <span class="tag">Module 3</span>
-                    <h3>Alignment &amp; Quantification</h3>
-                    <p>Reference-based alignment with STAR and HISAT2, alignment QC with RSeQC and Qualimap, and read counting with featureCounts and HTSeq.</p>
+                    <h3>QC &amp; Preprocessing</h3>
+                    <p>Raw data quality evaluation with FastQC, adapter trimming and quality filtering with fastp, ribosomal and contaminant read removal, and aggregated QC reporting with MultiQC.</p>
                     <a href="html/schedule.html#module3">View Module 3 &rarr;</a>
                 </div>
                 <div class="card">
                     <span class="tag">Module 4</span>
-                    <h3>Quasi-mapping &amp; Transcript Quantification</h3>
-                    <p>Fast transcript-level quantification with Salmon and kallisto, understanding TPM/FPKM/RPKM, and tximport for downstream analysis.</p>
+                    <h3>Read Alignment</h3>
+                    <p>Splice-aware alignment to GRCh38 with STAR, BAM post-processing with samtools and Picard, alignment QC with RSeQC and QualiMap, and visualization in IGV.</p>
                     <a href="html/schedule.html#module4">View Module 4 &rarr;</a>
                 </div>
                 <div class="card">
                     <span class="tag">Module 5</span>
-                    <h3>nf-core/rnaseq Workflow</h3>
-                    <p>Introduction to Nextflow and nf-core. Configure and run the nf-core/rnaseq pipeline on Ibex — covering samplesheet setup, pipeline parameters, profiles, and understanding the full output structure.</p>
+                    <h3>Quantification</h3>
+                    <p>Transcript quantification with Salmon, post-alignment QC with RSeQC and dupRadar, exploratory analysis and sample-level QC (PCA, sample-distance heatmap) in Python and R.</p>
                     <a href="html/schedule.html#module5">View Module 5 &rarr;</a>
                 </div>
                 <div class="card">
                     <span class="tag">Module 6</span>
-                    <h3>Differential Expression Analysis</h3>
-                    <p>Exploratory data analysis, normalization, statistical modelling with DESeq2 and edgeR, and interpreting DE results including LFC shrinkage.</p>
+                    <h3>Standardized Analysis I: nf-core/rnaseq</h3>
+                    <p>Introduction to Nextflow and nf-core. Configure and run the nf-core/rnaseq pipeline on Ibex with the KAUST institutional profile — samplesheet setup, key parameters, and interpreting the MultiQC output.</p>
                     <a href="html/schedule.html#module6">View Module 6 &rarr;</a>
                 </div>
                 <div class="card">
                     <span class="tag">Module 7</span>
-                    <h3>Visualization &amp; Functional Analysis</h3>
-                    <p>PCA plots, volcano plots, heatmaps with pheatmap/ComplexHeatmap, gene ontology enrichment with clusterProfiler, and pathway analysis with fgsea.</p>
+                    <h3>Differential Expression Analysis</h3>
+                    <p>Normalization strategies, statistical testing, experimental design, and contrasts. Differential expression analysis in R using DESeq2 — PCA, volcano plots, MA plots, and heatmaps with ggplot2 and pheatmap.</p>
                     <a href="html/schedule.html#module7">View Module 7 &rarr;</a>
                 </div>
                 <div class="card">
                     <span class="tag">Module 8</span>
-                    <h3>nf-core/differentialabundance</h3>
-                    <p>End-to-end automated DE analysis using the nf-core/differentialabundance pipeline — from count matrices to interactive Shiny reports, covering configuration, contrasts, and output interpretation.</p>
+                    <h3>Functional Enrichment</h3>
+                    <p>Gene Ontology enrichment with clusterProfiler, KEGG pathway analysis, and Gene Set Enrichment Analysis (GSEA) with fgsea — interpreting enrichment results and producing publication-quality dot plots.</p>
                     <a href="html/schedule.html#module8">View Module 8 &rarr;</a>
                 </div>
                 <div class="card">
                     <span class="tag">Module 9</span>
-                    <h3>Real-world Analysis Capstone</h3>
-                    <p>End-to-end analysis of a real public RNA-seq dataset: running nf-core/rnaseq, interpreting MultiQC reports, importing Salmon counts, performing DE analysis, and reporting results.</p>
+                    <h3>Standardized Analysis II: nf-core/differentialabundance</h3>
+                    <p>End-to-end automated differential expression using nf-core/differentialabundance — from count matrices to an interactive Shiny report, covering contrasts configuration and output interpretation.</p>
                     <a href="html/schedule.html#module9">View Module 9 &rarr;</a>
+                </div>
+                <div class="card">
+                    <span class="tag">Module 10</span>
+                    <h3>Real-world Analysis Capstone</h3>
+                    <p>End-to-end analysis of GSE136366 using nf-core/rnaseq and nf-core/differentialabundance. Interpret MultiQC reports, perform DEA, run enrichment analysis, and present results to the group.</p>
+                    <a href="html/schedule.html#module10">View Module 10 &rarr;</a>
                 </div>
             </div>
         </section>
@@ -181,15 +187,11 @@
             <div class="tools-list">
                 <span class="tool-tag">FastQC</span>
                 <span class="tool-tag">fastp</span>
-                <span class="tool-tag">Trimmomatic</span>
                 <span class="tool-tag">MultiQC</span>
                 <span class="tool-tag">STAR</span>
-                <span class="tool-tag">HISAT2</span>
                 <span class="tool-tag">samtools</span>
-                <span class="tool-tag">featureCounts</span>
-                <span class="tool-tag">HTSeq</span>
+                <span class="tool-tag">Picard</span>
                 <span class="tool-tag">Salmon</span>
-                <span class="tool-tag">kallisto</span>
                 <span class="tool-tag">DESeq2</span>
                 <span class="tool-tag">edgeR</span>
                 <span class="tool-tag">tximport</span>
