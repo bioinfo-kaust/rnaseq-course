@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lab 2: Public Data Retrieval — RNA-seq Comprehensive Course</title>
+    <title>Lab 2: Public Data Retrieval — RNA-seq Data Analysis Course</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -483,26 +483,6 @@ ls -lh</code></pre>
         </section>
 
         <section id="part5">
-            <h2>Part 5: Subsampling Full Data (Optional)</h2>
-            <p>If you want to quickly test a pipeline with a minimal dataset, you can subsample the full SRA FASTQs to 1 million reads. This is separate from the chr11 data used in Labs 3–5.</p>
-
-            <div class="step" data-step="1">
-                <h3>Subsample GSE136366 full FASTQs to 1 million reads</h3>
-                <pre><code>cd /ibex/user/$USER/workshop
-
-mkdir -p subsampled_raw_data
-
-for srr in $(cat raw_data/SRR_Acc_List.txt); do
-    echo "Subsampling $srr ..."
-    seqkit sample -n 1000000 -s 42 raw_data/${srr}_1.fastq.gz -o subsampled_raw_data/${srr}_sub_1.fastq.gz
-    seqkit sample -n 1000000 -s 42 raw_data/${srr}_2.fastq.gz -o subsampled_raw_data/${srr}_sub_2.fastq.gz
-done
-
-seqkit stats subsampled_raw_data/*_sub_1.fastq.gz</code></pre>
-            </div>
-        </section>
-
-        <section id="part6">
             <h2>Part 6: Organizing Your Workspace</h2>
 
             <div class="step" data-step="1">
@@ -526,7 +506,7 @@ ls /ibex/user/$USER/workshop/</code></pre>
             </div>
         </section>
 
-        <section id="part7">
+        <section id="part6">
             <h2>Part 7: Exploring Downloaded Data</h2>
             <p>Before proceeding with analysis, always inspect your downloaded data to make sure everything looks correct.</p>
 
@@ -614,7 +594,7 @@ seqkit stats raw_data/$(head -1 raw_data/SRR_Acc_List.txt)_1.fastq.gz</code></pr
     </main>
 
     <footer>
-        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
+        <p>RNA-seq Data Analysis Course &mdash; KAUST Bioinformatics Platform</p>
     </footer>
 
     <script>

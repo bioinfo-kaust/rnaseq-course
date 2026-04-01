@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Schedule — RNA-seq Comprehensive Course</title>
+    <title>Schedule — RNA-seq Data Analysis Course</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -23,7 +23,7 @@
     <main>
         <div class="hero">
             <h1 style="color:aliceblue;">Course Schedule</h1>
-            <p>RNA-seq Comprehensive Course &mdash; 5&ndash;9 April 2026 &bull; KAUST, Thuwal</p>
+            <p>RNA-seq Data Analysis Course &mdash; 5&ndash;9 April 2026 &bull; KAUST, Thuwal</p>
         </div>
 
         <section>
@@ -271,7 +271,7 @@
                         <td>09:45 &ndash; 10:30</td>
                         <td class="session-type">Lab 5</td>
                         <td>Salmon quantification of GSE136366</td>
-                        <td><code>Salmon</code></td>
+                        <td><code>Salmon</code>, <code>tximport</code></td>
                     </tr>
                     <tr>
                         <td>10:30 &ndash; 10:45</td>
@@ -283,10 +283,9 @@
                     <tr class="lab-session">
                         <td>10:45 &ndash; 12:00</td>
                         <td class="session-type">Lab 5</td>
-                        <td>Visualization of gene level quantification and sample-level exploratory analysis</td>
-                        <td><code>tximport</code>, <code>ggplot2</code></td>
+                        <td>Exploratory analysis quantification for sample-level QC</td>
+                        <td><code>python seaborn</code>, <code>R ggplot2</code></td>
                     </tr>
-                    
                     <tr>
                         <td>12:00 &ndash; 13:00</td>
                         <td class="session-type">Lunch</td>
@@ -313,20 +312,22 @@
                         <td>Nextflow and nf-core overview; nf-core/rnaseq workflow structure and key parameters</td>
                         <td><code>Nextflow</code>, <code>nf-core tools</code></td>
                     </tr>
-                    <tr>
-                        <td>14:00 &ndash; 14:30</td>
-                        <td class="session-type">Lecture</td>
-                        <td>Samplesheet setup, Singularity containers, and Ibex job submission</td>
-                        <td><code>Singularity</code></td>
+                    
+                    <tr class="lab-session">
+                        <td>14:00 &ndash; 14:45</td>
+                        <td class="session-type">Lab 6</td>
+                        <td>Samplesheet setup, Singularity containers, and test workflow run</td>
+                        <td><code>nf-core/rnaseq</code>, <code>nano</code></td>
                     </tr>
+                    
                     <tr>
-                        <td>14:30 &ndash; 14:45</td>
+                        <td>14:45 &ndash; 15:00</td>
                         <td class="session-type">Break</td>
                         <td>&mdash;</td>
                         <td>&mdash;</td>
                     </tr>
                     <tr class="lab-session">
-                        <td>14:45 &ndash; 16:30</td>
+                        <td>15:00 &ndash; 16:30</td>
                         <td class="session-type">Lab 6</td>
                         <td>Configure and run nf-core/rnaseq on GSE136366; inspect MultiQC report and output files</td>
                         <td><code>nf-core/rnaseq</code>, <code>MultiQC</code></td>
@@ -401,16 +402,16 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td>13:00 &ndash; 13:45</td>
+                        <td>13:00 &ndash; 14:00</td>
                         <td class="session-type">Lecture</td>
-                        <td>Enrichment analysis overview: ORA vs. GSEA; multiple testing considerations</td>
-                        <td>&mdash;</td>
-                    </tr>
-                    <tr>
-                        <td>13:45 &ndash; 14:30</td>
-                        <td class="session-type">Lecture</td>
-                        <td>Gene Ontology (GO) enrichment, KEGG pathway analysis, and Gene Set Enrichment Analysis (GSEA)</td>
+                        <td>Enrichment analysis & statisical considerations: ORA vs. GSEA, GO, KEGG pathways</td>
                         <td><code>clusterProfiler</code>, <code>fgsea</code>, <code>org.Hs.eg.db</code></td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>14:00 &ndash; 15:00</td>
+                        <td class="session-type">Lab 8</td>
+                        <td>GO enrichment, pathway enrichment, and GSEA on GSE136366 DEG results</td>
+                        <td><code>clusterProfiler</code>, <code>fgsea</code>, <code>ggplot2</code></td>
                     </tr>
                     <tr>
                         <td>14:30 &ndash; 14:45</td>
@@ -418,17 +419,18 @@
                         <td>&mdash;</td>
                         <td>&mdash;</td>
                     </tr>
-                    <tr class="lab-session">
-                        <td>14:45 &ndash; 16:30</td>
-                        <td class="session-type">Lab 8</td>
-                        <td>GO enrichment, pathway enrichment, and GSEA on GSE136366 DEG results</td>
-                        <td><code>clusterProfiler</code>, <code>fgsea</code>, <code>ggplot2</code></td>
-                    </tr>
+                    
                     <tr>
-                        <td>16:30 &ndash; 17:00</td>
-                        <td class="session-type">Wrap-up</td>
-                        <td>Q&amp;A and recap</td>
-                        <td>&mdash;</td>
+                        <td>15:15 &ndash; 16:00</td>
+                        <td class="session-type">Lecture</td>
+                        <td>nf-core/differentialabundance overview: input files, contrasts configuration, and output</td>
+                        <td><code>nf-core/differentialabundance</code></td>
+                    </tr>
+                    <tr class="lab-session">
+                        <td>09:00 &ndash; 10:15</td>
+                        <td class="session-type">Lab 9</td>
+                        <td>Configure and run nf-core/differentialabundance on GSE136366; interpret output</td>
+                        <td><code>nf-core/differentialabundance</code></td>
                     </tr>
                 </tbody>
             </table>
@@ -450,28 +452,22 @@
                 </thead>
                 <tbody>
                     <tr>
-                        <td>09:00 &ndash; 09:45</td>
-                        <td class="session-type">Lecture</td>
-                        <td>nf-core/differentialabundance overview: input files, contrasts configuration, and output</td>
-                        <td><code>nf-core/differentialabundance</code></td>
-                    </tr>
-                    <tr>
-                        <td>09:45 &ndash; 10:30</td>
+                        <td>09:00 &ndash; 10:15</td>
                         <td class="session-type">Lecture</td>
                         <td>Interpreting the interactive Shiny report and MultiQC DE summary</td>
-                        <td><code>MultiQC</code></td>
+                        <td><code>R shiny, MultiQC</code></td>
                     </tr>
                     <tr>
-                        <td>10:30 &ndash; 10:45</td>
+                        <td>10:15 &ndash; 10:30</td>
                         <td class="session-type">Break</td>
                         <td>&mdash;</td>
                         <td>&mdash;</td>
                     </tr>
                     <tr class="lab-session">
-                        <td>10:45 &ndash; 12:00</td>
-                        <td class="session-type">Lab 9</td>
-                        <td>Configure and run nf-core/differentialabundance on GSE136366; interpret output</td>
-                        <td><code>nf-core/differentialabundance</code></td>
+                        <td>10:30 &ndash; 12:00</td>
+                        <td class="session-type">Lab</td>
+                        <td>Personal or Capstone project setup and execution</td>
+                        <td><code>nf-core workflows</code></td>
                     </tr>
                     <tr>
                         <td>12:00 &ndash; 13:00</td>
@@ -529,7 +525,7 @@
     </main>
 
     <footer>
-        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
+        <p>RNA-seq Data Analysis Course &mdash; KAUST Bioinformatics Platform</p>
     </footer>
 
     <script>

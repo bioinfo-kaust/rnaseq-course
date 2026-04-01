@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Lab 6: nf-core/rnaseq Pipeline — RNA-seq Comprehensive Course</title>
+    <title>Lab 6: nf-core/rnaseq Pipeline — RNA-seq Data Analysis Course</title>
     <link rel="stylesheet" href="../css/style.css">
 </head>
 <body>
@@ -97,7 +97,7 @@ nextflow -version
 singularity --version</code></pre>
                 <div class="info-box tip">
                     <strong>Tip: Nextflow version</strong>
-                    <p>nf-core/rnaseq requires Nextflow &ge; 23.04. If the default module version is older, check for a newer one with <code>module avail nextflow</code> and load the latest. Both <code>nextflow</code> and <code>singularity</code> must be loaded — the KAUST profile uses Singularity containers for all pipeline tools.</p>
+                    <p>nf-core/rnaseq requires Nextflow &ge; 23.04. Both <code>nextflow</code> and <code>singularity</code> must be loaded — the KAUST profile uses Singularity containers for all pipeline tools.</p>
                 </div>
             </div>
 
@@ -204,7 +204,7 @@ cat samplesheet.csv</code></pre>
                 <h3>Full pipeline run command</h3>
                 <pre><code>cd /ibex/user/$USER/workshop/nfcore_rnaseq
 
-nextflow run nf-core/rnaseq \
+nextflow run nf-core/rnaseq -r 3.23.0 \
     --input samplesheet.csv \
     --outdir results \
     --fasta /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.dna.chromosome.11.fa \
@@ -543,7 +543,7 @@ scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_rnaseq/re
     </main>
 
     <footer>
-        <p>RNA-seq Comprehensive Course &mdash; KAUST Bioinformatics Platform</p>
+        <p>RNA-seq Data Analysis Course &mdash; KAUST Bioinformatics Platform</p>
     </footer>
 
     <script>
