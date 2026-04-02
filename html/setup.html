@@ -26,7 +26,17 @@
             <p>Prepare your system before the course begins</p>
         </div>
 
-        <section>
+        <div class="lab-nav">
+            <a href="#access"><span class="part-num">Part 1</span><span class="part-label">Prerequisites &amp; Access</span></a>
+            <a href="#connect"><span class="part-num">Part 2</span><span class="part-label">Connecting &amp; Modules</span></a>
+            <a href="#files"><span class="part-num">Part 3</span><span class="part-label">File Transfer</span></a>
+            <a href="#igv"><span class="part-num">Part 4</span><span class="part-label">IGV</span></a>
+            <a href="#conda"><span class="part-num">Part 5</span><span class="part-label">Conda Environment</span></a>
+            <a href="#quickref"><span class="part-num">Part 6</span><span class="part-label">Quick Reference</span></a>
+            <a href="#cheatsheet"><span class="part-num">Part 7</span><span class="part-label">Linux Cheatsheet</span></a>
+        </div>
+
+        <section id="access">
             <div class="breadcrumbs">
                 <a href="../index.html">Home</a> &rsaquo; Setup
             </div>
@@ -77,7 +87,7 @@ du -sh /ibex/user/$USER/* | sort -rh | head -20</div>
         <!-- ================================================ -->
         <!-- Connecting to Ibex                               -->
         <!-- ================================================ -->
-        <section>
+        <section id="connect">
             <h2>Connecting to Ibex</h2>
             <div class="code-container">
                 <pre><code>ssh your_username@ilogin.ibex.kaust.edu.sa</code></pre>
@@ -103,7 +113,7 @@ module load salmon</code></pre>
         <!-- ================================================ -->
         <!-- Working with Files                               -->
         <!-- ================================================ -->
-        <section>
+        <section id="files">
             <h2>Working with Files Between Your Computer and Ibex</h2>
             <p>You will regularly need to transfer files to and from Ibex — uploading scripts, downloading results, and opening output files locally. Choose the method that suits your operating system.</p>
 
@@ -219,7 +229,7 @@ rsync -avz --progress \
         <!-- ================================================ -->
         <!-- IGV on local machine                             -->
         <!-- ================================================ -->
-        <section>
+        <section id="igv">
             <h2>IGV — Install on Your Local Computer</h2>
             <p>The Integrative Genomics Viewer (IGV) is a desktop application for visualizing BAM files and genomic data. Install it on your <strong>laptop</strong> before Lab 4.</p>
 
@@ -245,7 +255,7 @@ rsync -avz --progress \
         <!-- ================================================ -->
         <!-- Conda environment on Ibex                        -->
         <!-- ================================================ -->
-        <section>
+        <section id="conda">
             <h2>Conda Environment on Ibex</h2>
             <p>A single <code>rnaseq</code> conda environment provides JupyterLab, all Python packages used in the notebooks, and all R/Bioconductor packages used in the R labs. Follow the steps below once before the course starts.</p>
 
@@ -359,7 +369,7 @@ Rscript -e "library(DESeq2); library(tximport); library(clusterProfiler); cat('R
             </div>
         </section>
 
-        <section>
+        <section id="quickref">
             <h2>Quick Reference: Daily Commands</h2>
             <pre><code># Connect to Ibex
 ssh username@ilogin.ibex.kaust.edu.sa
@@ -371,7 +381,7 @@ srun --pty --time=4:00:00 --mem=8G --cpus-per-task=4 bash
 cd /ibex/user/$USER/workshop</code></pre>
         </section>
 
-        <section>
+        <section id="cheatsheet">
             <details>
                 <summary><h2 style="display: inline; cursor: pointer;">Linux Command Line Cheatsheet</h2></summary>
 
