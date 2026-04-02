@@ -256,16 +256,13 @@ rsync -avz --progress \
         <!-- Conda environment on Ibex                        -->
         <!-- ================================================ -->
         <section id="conda">
-            <h2>Conda Environment on Ibex</h2>
-            <p>A single <code>rnaseq</code> conda environment provides JupyterLab, all Python packages used in the notebooks, and all R/Bioconductor packages used in the R labs. Follow the steps below once before the course starts.</p>
+            <h2>Conda Environment</h2>
+            <p>A single <code>rnaseq</code> conda environment provides JupyterLab, all Python packages used in the notebooks, and all R/Bioconductor packages used in the R labs. Install it on <strong>Ibex</strong> for running analyses on the cluster, and optionally on your <strong>laptop</strong> for the R/Python visualization labs that do not require HPC resources.</p>
 
-            <div class="info-box note">
-                <strong>Run these commands on Ibex, not on your local machine.</strong>
-                <p>Connect to Ibex first, then follow the steps below in your home directory.</p>
-            </div>
-
-            <h3>Step 1 — Install Miniforge - Skip if conda is already installed</h3>
+            <h3>Step 1 — Install Miniforge <small style="font-weight:normal; color:#666;">(skip if conda/mamba is already installed)</small></h3>
             <p>Miniforge is a minimal conda installer that uses the community-maintained <code>conda-forge</code> channel by default and includes <code>mamba</code> (a fast dependency solver) out of the box.</p>
+
+            <h4>Linux &amp; Ibex (x86_64)</h4>
             <div class="code-container">
                 <pre><code># Download the Miniforge installer for Linux (64-bit)
 wget https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-Linux-x86_64.sh \
@@ -288,8 +285,45 @@ mamba --version</code></pre>
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
             </div>
 
+            <h4>macOS</h4>
+            <div class="info-box tip">
+                <strong>Apple Silicon (M1/M2/M3) or Intel?</strong>
+                <p>Run <code>uname -m</code> in your terminal. Output <code>arm64</code> = Apple Silicon; <code>x86_64</code> = Intel. Use the matching installer below.</p>
+            </div>
+            <div class="code-container">
+                <pre><code># Apple Silicon (M1/M2/M3)
+curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-arm64.sh \
+    -o ~/miniforge3_install.sh
+
+# Intel Mac — use this line instead:
+# curl -L https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-MacOSX-x86_64.sh \
+#     -o ~/miniforge3_install.sh
+
+# Run the installer
+bash ~/miniforge3_install.sh -b -p ~/miniforge3
+
+# Activate conda for your current shell session
+source ~/miniforge3/bin/activate
+
+# Initialise conda — macOS defaults to zsh; add bash if you also use it
+conda init zsh
+
+# Reload your shell config
+source ~/.zshrc
+
+# Verify
+mamba --version</code></pre>
+                <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+
+            <h4>Windows</h4>
+            <div class="info-box note">
+                <strong>Recommended: use WSL2 (Windows Subsystem for Linux)</strong>
+                <p>WSL2 gives you a full Ubuntu environment on Windows and is the most compatible option for bioinformatics work. Once inside WSL2, follow the <strong>Linux &amp; Ibex</strong> instructions above. If you prefer a native Windows install, download the <code>.exe</code> GUI installer from <a href="https://github.com/conda-forge/miniforge/releases/latest" target="_blank" rel="noopener">github.com/conda-forge/miniforge/releases</a> (<code>Miniforge3-Windows-x86_64.exe</code>) and run it — then use Miniforge Prompt or Anaconda Prompt for the steps below.</p>
+            </div>
+
             <h3>Step 2 — Create the <code>rnaseq</code> environment</h3>
-            <p>This single environment includes JupyterLab, Python analysis packages, and R/Bioconductor packages for all course labs:</p>
+            <p>This command is the same on all platforms (Linux, macOS, Windows WSL2). It installs JupyterLab, Python analysis packages, and R/Bioconductor packages for all course labs. Expect it to take <strong>10–20 minutes</strong> on first install.</p>
             <div class="code-container">
                 <pre><code>mamba create -n rnaseq -c conda-forge -c bioconda \
     python=3.11 \
@@ -354,6 +388,7 @@ mamba --version</code></pre>
             </div>
 
             <h3>Step 3 — Activate and verify</h3>
+            <p>Activation syntax is identical on all platforms.</p>
             <div class="code-container">
                 <pre><code>conda activate rnaseq
 
@@ -366,6 +401,14 @@ jupyter lab --version
 # Verify R packages
 Rscript -e "library(DESeq2); library(tximport); library(clusterProfiler); cat('R packages OK\n')"</code></pre>
                 <button class="copy-btn" onclick="copyCode(this)">Copy</button>
+            </div>
+
+            <div class="info-box tip">
+                <strong>Running JupyterLab</strong>
+                <ul>
+                    <li><strong>On Ibex (recommended):</strong> use the <a href="https://ondemand.ibex.kaust.edu.sa/" target="_blank" rel="noopener">Ibex Open OnDemand portal</a> — go to <em>Interactive Apps → JupyterLab</em>, request resources, and click <em>Connect</em>. No terminal setup needed.</li>
+                    <li><strong>On your laptop:</strong> activate the environment and run <code>jupyter lab</code> — it opens automatically in your browser.</li>
+                </ul>
             </div>
         </section>
 

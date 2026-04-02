@@ -240,7 +240,7 @@ done</code></pre>
         <!-- ============================================= -->
         <section id="part4">
             <h2>Part 4: Exploratory Analysis in Python (Jupyter Notebook)</h2>
-            <p>The same exploratory analysis from Part 4 is available as a Python Jupyter notebook at <code>notebooks/lab5_exploratory_analysis.ipynb</code> in the course repository. This part explains how to run it interactively on Ibex via SSH tunneling.</p>
+            <p>Run the notebook <code>lab5_exploratory_analysis.ipynb</code> interactively — either through the Ibex Open OnDemand portal (recommended) or locally on your laptop.</p>
 
             <div class="info-box note">
                 <strong>What the notebook covers</strong>
@@ -256,64 +256,37 @@ done</code></pre>
             </div>
 
             <div class="step" data-step="1">
-                <h3>Copy the notebook to your workshop directory on Ibex</h3>
-                <p>Upload the notebook from the course repository to your Ibex workshop directory. From your local machine:</p>
-                <pre><code>scp /path/to/course/notebooks/lab5_exploratory_analysis.ipynb \
-    username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/</code></pre>
-                <p>Or clone/pull the course repository directly on Ibex if you have access.</p>
+                <h3 style="margin-top:1rem; padding:0.5rem 1rem; background:#e8f8e8; border-left:4px solid #4CAF50;">Option A: Ibex Open OnDemand (recommended)</h3>
+                <ol>
+                    <li>Go to <a href="https://ondemand.ibex.kaust.edu.sa/" target="_blank" rel="noopener"><strong>ondemand.ibex.kaust.edu.sa</strong></a> and log in with your Ibex credentials.</li>
+                    <li>Click <strong>Interactive Apps → JupyterLab</strong>.</li>
+                    <li>Set the resources: <strong>4 CPUs</strong>, <strong>16 GB RAM</strong>, <strong>4 hours</strong>, partition <strong>batch</strong>.</li>
+                    <li>In the <em>Extra Jupyter arguments</em> field enter: <code>--notebook-dir=/ibex/user/$USER/workshop</code></li>
+                    <li>Click <strong>Launch</strong>, wait for the session to start (usually &lt; 1 minute), then click <strong>Connect to JupyterLab</strong>.</li>
+                    <li>In the file browser on the left, open <code>lab5_exploratory_analysis.ipynb</code>.</li>
+                </ol>
+                <div class="info-box note">
+                    <strong>First time: set the kernel</strong>
+                    <p>If the notebook asks you to select a kernel, choose <strong>rnaseq</strong> (the conda environment you created during setup). If it does not appear, activate it first in a terminal: <code>conda activate rnaseq && python -m ipykernel install --user --name rnaseq</code>, then refresh the page.</p>
+                </div>
             </div>
 
             <div class="step" data-step="2">
-                <h3>Start an interactive session on Ibex</h3>
-                <pre><code># Connect to Ibex
-ssh username@ilogin.ibex.kaust.edu.sa
-
-# Request an interactive compute node
-# Note the node name printed in the prompt (e.g., cn501-13) — you will need it for tunneling
-srun --pty --time=4:00:00 --mem=16G --cpus-per-task=4 bash</code></pre>
-                <div class="info-box tip">
-                    <strong>Note the compute node name</strong>
-                    <p>When your interactive session starts, your prompt changes to show the node name, e.g., <code>[username@cn501-13 ~]$</code>. Write down <code>cn501-13</code> (or whatever node you land on) — you will need it in Step 4 to set up the SSH tunnel.</p>
-                </div>
-            </div>
-
-            <div class="step" data-step="3">
-                <h3>Activate the environment and launch Jupyter Lab</h3>
-                <pre><code># Activate the rnaseq conda environment (see Setup page)
+                <h3 style="margin-top:1rem; padding:0.5rem 1rem; background:#e8f4fd; border-left:4px solid #2196F3;">Option B: Run locally on your laptop</h3>
+                <p>If the Salmon output files are available on your laptop (or you copied them from Ibex), you can run the notebook entirely offline.</p>
+                <pre><code># Activate the rnaseq conda environment
 conda activate rnaseq
 
-# Move to your workshop directory
-cd /ibex/user/$USER/workshop
+# Navigate to the directory containing the notebook
+cd /path/to/workshop   # adjust to where you placed the notebook and Salmon output
 
-# Start Jupyter Lab without opening a browser
-# Use a port number between 8000–9999 (pick one unlikely to be in use)
-jupyter lab --no-browser --port=8888 --ip=0.0.0.0</code></pre>
-                <p>Jupyter will print a URL containing a token, like:</p>
-                <pre><code>http://cn501-13:8888/lab?token=abc123def456...</code></pre>
-                <p>Keep this terminal open — Jupyter runs here as long as your interactive session is active.</p>
-            </div>
-
-            <div class="step" data-step="4">
-                <h3>Open an SSH tunnel from your local machine</h3>
-                <p>Open a <strong>new terminal on your local computer</strong> (do not close the Ibex session) and run:</p>
-                <pre><code># Replace cn501-13 with your actual compute node name
-# Replace username with your Ibex username
-ssh -L 8888:cn501-13:8888 username@ilogin.ibex.kaust.edu.sa</code></pre>
-                <div class="info-box note">
-                    <strong>How SSH tunneling works</strong>
-                    <p>This command forwards port <code>8888</code> on your local machine to port <code>8888</code> on the compute node (<code>cn501-13</code>), routing through the Ibex login node. Your browser talks to <code>localhost:8888</code>, which securely proxies to Jupyter running on the compute node.</p>
-                </div>
-            </div>
-
-            <div class="step" data-step="5">
-                <h3>Open the notebook in your browser</h3>
-                <p>Copy the URL printed by Jupyter in Step 3 and change the hostname to <code>localhost</code>:</p>
-                <pre><code># Paste this in your browser — replace the token with the one from your Jupyter output
-http://localhost:8888/lab?token=abc123def456...</code></pre>
-                <p>Jupyter Lab will open in your browser. Navigate to <code>lab5_exploratory_analysis.ipynb</code> and run the cells from top to bottom with <strong>Shift + Enter</strong>.</p>
+# Launch JupyterLab — opens automatically in your browser
+jupyter lab</code></pre>
+                <p>Open <code>lab5_exploratory_analysis.ipynb</code> from the file browser and run all cells with <strong>Shift + Enter</strong> or <strong>Run → Run All Cells</strong>.</p>
                 <div class="info-box tip">
-                    <strong>If the port is already in use</strong>
-                    <p>If port <code>8888</code> is busy, Jupyter will automatically try <code>8889</code>, <code>8890</code>, etc. Check the URL it prints and use the same port number in the <code>ssh -L</code> command and in your browser.</p>
+                    <strong>Copy Salmon output from Ibex to your laptop</strong>
+                    <pre><code># Run this on your LOCAL machine
+scp -r username@ilogin.ibex.kaust.edu.sa:/ibex/user/username/workshop/counts/salmon ./counts/</code></pre>
                 </div>
             </div>
         </section>
