@@ -28,7 +28,6 @@
             <a href="#part2"><span class="part-num">Part 2</span><span class="part-label">Finding Data on NCBI</span></a>
             <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">Download Reads</span></a>
             <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">Reference Genomes</span></a>
-            <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">Subsampling</span></a>
             <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">Organize Workspace</span></a>
             <a href="#part7"><span class="part-num">Part 7</span><span class="part-label">Explore Data</span></a>
         </div>
@@ -483,11 +482,11 @@ ls -lh</code></pre>
         </section>
 
         <section id="part5">
-            <h2>Part 6: Organizing Your Workspace</h2>
+            <h2>Part 5: Organizing Your Workspace</h2>
 
             <div class="step" data-step="1">
                 <h3>Create the full directory structure</h3>
-                <pre><code>mkdir -p /ibex/user/$USER/workshop/{raw_data,subsampled_raw_data,trimmed,aligned,counts,results,references,logs}
+                <pre><code>mkdir -p /ibex/user/$USER/workshop/{raw_data,trimmed,aligned,counts,results,references,logs}
 
 ls /ibex/user/$USER/workshop/</code></pre>
                 <div class="info-box note">
@@ -495,7 +494,6 @@ ls /ibex/user/$USER/workshop/</code></pre>
                     <table class="schedule-table">
                         <tr><th>Directory</th><th>Contents</th><th>Used in</th></tr>
                         <tr><td><code>raw_data/</code></td><td>Original full FASTQ files downloaded from SRA</td><td>Lab 6 onwards (nf-core)</td></tr>
-                        <tr><td><code>subsampled_raw_data/</code></td><td>1 M read subsets of the full FASTQs</td><td>Pipeline testing only</td></tr>
                         <tr><td><code>trimmed/</code></td><td>fastp-trimmed FASTQs</td><td>Labs 3–5</td></tr>
                         <tr><td><code>aligned/</code></td><td>STAR BAM files</td><td>Lab 4</td></tr>
                         <tr><td><code>counts/</code></td><td>Salmon quantification output</td><td>Lab 5</td></tr>
