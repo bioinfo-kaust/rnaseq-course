@@ -487,7 +487,7 @@ ls -lh</code></pre>
 
             <div class="step" data-step="1">
                 <h3>Create the full directory structure</h3>
-                <pre><code>mkdir -p /ibex/user/$USER/workshop/{raw_data,chr11_raw_data,subsampled_raw_data,trimmed,aligned,counts,results,references,logs}
+                <pre><code>mkdir -p /ibex/user/$USER/workshop/{raw_data,subsampled_raw_data,trimmed,aligned,counts,results,references,logs}
 
 ls /ibex/user/$USER/workshop/</code></pre>
                 <div class="info-box note">
@@ -549,10 +549,10 @@ grep -P "\tgene\t" references/GRCh38_genes.gtf | wc -l</code></pre>
 
             <div class="card">
                 <h3>Exercise 1: Read Counts</h3>
-                <p>How many reads are in the chr11-filtered FASTQ for one sample? Compare it to one of the full SRA FASTQs in <code>raw_data/</code>.</p>
+                <p>How many reads are in the FASTQ for one sample? Compare it to one of the full SRA FASTQs in <code>raw_data/</code>.</p>
                 <details>
                     <summary>Hint</summary>
-                    <pre><code>seqkit stats chr11_raw_data/KO_1_SRR10045016_1.fastq.gz
+                    <pre><code>seqkit stats raw_data/KO_1_SRR10045016_1.fastq.gz
 seqkit stats raw_data/$(head -1 raw_data/SRR_Acc_List.txt)_1.fastq.gz</code></pre>
                 </details>
             </div>
@@ -587,7 +587,7 @@ seqkit stats raw_data/$(head -1 raw_data/SRR_Acc_List.txt)_1.fastq.gz</code></pr
                 <li>Copied raw GSE136366 FASTQs from the <strong>shared course directory</strong> (Option A) — and learned how to download from <strong>NCBI SRA</strong> using <code>prefetch</code>/<code>fasterq-dump</code> (Option B)</li>
                 <li>Downloaded a reference genome using <strong>NCBI <code>datasets</code></strong> CLI (Option A) or <strong>Ensembl FTP</strong> using <code>wget</code> (Option B)</li>
                 <li>Used <code>seqkit</code> to summarize FASTQ data</li>
-                <li>Organized all data with a clear directory structure on Ibex (<code>raw_data/</code>, <code>chr11_raw_data/</code>, <code>trimmed/</code>, etc.)</li>
+                <li>Organized all data with a clear directory structure on Ibex (<code>raw_data/</code>, <code>trimmed/</code>, etc.)</li>
             </ul>
             <p><strong>Next:</strong> <a href="lab-qc-preprocessing.html">Lab 3: FastQC, fastp, and MultiQC</a></p>
         </section>
