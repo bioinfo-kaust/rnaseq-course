@@ -36,14 +36,14 @@
                 <!-- Module 2 -->
                 <div class="card lab-card">
                     <span class="tag">Lab 1 · Module 2</span>
-                    <h3>Genomic File Formats</h3>
+                    <h3><a href="lab-file-formats.html">Genomic File Formats</a></h3>
                     <p>Explore common RNA-seq file formats: FASTQ, FASTA, GTF/GFF, BAM/SAM, BED, VCF. Understand header structures, quality encoding, and how each format is used in the analysis pipeline.</p>
                     <a href="lab-file-formats.html" class="btn">Open Lab</a>
                 </div>
 
                 <div class="card lab-card">
                     <span class="tag">Lab 2 · Module 2</span>
-                    <h3>Public Data Retrieval</h3>
+                    <h3><a href="lab-public-data.html">Public Data Retrieval</a></h3>
                     <p>Retrieve the GRCh38 reference genome and GTF annotation using NCBI <code>datasets</code>. Download GSE136366 FASTQ files via <code>sra-toolkit</code> and subsample to 1M reads using <code>seqkit</code>.</p>
                     <a href="lab-public-data.html" class="btn">Open Lab</a>
                 </div>
@@ -51,7 +51,7 @@
                 <!-- Module 3 -->
                 <div class="card lab-card">
                     <span class="tag">Lab 3 · Module 3</span>
-                    <h3>QC, Trimming &amp; MultiQC</h3>
+                    <h3><a href="lab-qc-preprocessing.html">QC, Trimming &amp; MultiQC</a></h3>
                     <p>Assess raw read quality with FastQC, trim adapters and low-quality bases with fastp, and aggregate reports across all GSE136366 samples using MultiQC.</p>
                     <a href="lab-qc-preprocessing.html" class="btn">Open Lab</a>
                 </div>
@@ -59,7 +59,7 @@
                 <!-- Module 4 -->
                 <div class="card lab-card">
                     <span class="tag">Lab 4 · Module 4</span>
-                    <h3>Read Alignment with STAR</h3>
+                    <h3><a href="lab-alignment.html">Read Alignment with STAR</a></h3>
                     <p>Build a STAR genome index (GRCh38 + Ensembl GTF), align subsampled GSE136366 reads, index BAM with samtools, mark duplicates with Picard, and visualize alignments in IGV.</p>
                     <a href="lab-alignment.html" class="btn">Open Lab</a>
                 </div>
@@ -67,7 +67,7 @@
                 <!-- Module 5 -->
                 <div class="card lab-card">
                     <span class="tag">Lab 5 · Module 5</span>
-                    <h3>Salmon Quantification &amp; Exploratory Analysis</h3>
+                    <h3><a href="lab-quantification.html">Salmon Quantification &amp; Exploratory Analysis</a></h3>
                     <p>Build a Salmon transcript index, quantify all GSE136366 samples with GC-bias correction, import counts into R with tximport, and perform PCA and sample-distance heatmap.</p>
                     <a href="lab-quantification.html" class="btn">Open Lab</a>
                 </div>
@@ -75,7 +75,7 @@
                 <!-- Module 6 -->
                 <div class="card lab-card">
                     <span class="tag">Lab 6 · Module 6</span>
-                    <h3>nf-core/rnaseq Workflow</h3>
+                    <h3><a href="lab-nfcore-rnaseq.html">nf-core/rnaseq Workflow</a></h3>
                     <p>Write a samplesheet for GSE136366, launch <code>nf-core/rnaseq</code> (STAR + Salmon) on Ibex with Singularity and SLURM, monitor progress, and explore the MultiQC report and merged count matrix.</p>
                     <a href="lab-nfcore-rnaseq.html" class="btn">Open Lab</a>
                 </div>
@@ -83,7 +83,7 @@
                 <!-- Module 7 -->
                 <div class="card lab-card">
                     <span class="tag">Lab 7 · Module 7</span>
-                    <h3>Differential Expression with DESeq2</h3>
+                    <h3><a href="lab-differential-expression.html">Differential Expression with DESeq2</a></h3>
                     <p>Load Salmon counts via tximport, build a DESeqDataSet, run DESeq2 for KO vs control, apply apeglm LFC shrinkage, and produce volcano plots, MA plots, and a heatmap of top 50 DE genes.</p>
                     <a href="lab-differential-expression.html" class="btn">Open Lab</a>
                 </div>
@@ -91,7 +91,7 @@
                 <!-- Module 8 -->
                 <div class="card lab-card">
                     <span class="tag">Lab 8 · Module 8</span>
-                    <h3>Functional Enrichment &amp; GSEA</h3>
+                    <h3><a href="lab-functional-enrichment.html">Functional Enrichment &amp; GSEA</a></h3>
                     <p>Run GO (BP) and KEGG enrichment with clusterProfiler on DE genes from GSE136366. Perform GSEA using fgsea with MSigDB Hallmarks. Produce dotplots and enrichment plots.</p>
                     <a href="lab-functional-enrichment.html" class="btn">Open Lab</a>
                 </div>
@@ -99,7 +99,7 @@
                 <!-- Module 9 -->
                 <div class="card lab-card">
                     <span class="tag">Lab 9 · Module 9</span>
-                    <h3>nf-core/differentialabundance</h3>
+                    <h3><a href="lab-nfcore-differentialabundance.html">nf-core/differentialabundance</a></h3>
                     <p>Prepare samplesheet and contrasts CSV for GSE136366, run <code>nf-core/differentialabundance</code> on Ibex, and interpret the automated DESeq2 results, MultiQC dashboard, and interactive Shiny app.</p>
                     <a href="lab-nfcore-differentialabundance.html" class="btn">Open Lab</a>
                 </div>
@@ -107,11 +107,10 @@
                 <!-- Module 10 -->
                 <div class="card lab-card">
                     <span class="tag">Lab 10 · Module 10</span>
-                    <h3>Real-world Analysis Capstone</h3>
+                    <h3><a href="lab-capstone.html">Real-world Analysis Capstone</a></h3>
                     <p>End-to-end independent analysis: download data, run QC, align, quantify, perform DEA with DESeq2, run functional enrichment, and optionally execute both nf-core workflows on GSE136366 or your own dataset.</p>
                     <a href="lab-capstone.html" class="btn">Open Lab</a>
                 </div>
-
             </div>
         </section>
     </main>
