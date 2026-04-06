@@ -123,19 +123,18 @@ ls -la</code></pre>
                 <h3>Copy the chr11 reference files from the shared course directory</h3>
                 <pre><code>cd /ibex/user/$USER/workshop
 
-SHARED=/biocorelab/BIX/resources/genomes/workshops/human-chr11
 mkdir -p references/chr11
 
 # Chr11 genome FASTA and GTF
-cp ${SHARED}/GRCh38.dna.chromosome.11.fa   references/chr11/
-cp ${SHARED}/GRCh38.chr11.gtf  references/chr11/
-cp ${SHARED}/GRCh38.cdna.chr11.fa  references/chr11/
+cp /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.dna.chromosome.11.fa   references/chr11/GRCh38.chr11.fa
+cp /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf  references/chr11/
+cp /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.cdna.chr11.fa  references/chr11/
 
 # Verify
 ls -lh references/chr11/</code></pre>
                 <div class="info-box note">
                     <strong>What these files contain</strong>
-                    <p><code>GRCh38.dna.chromosome.11.fa</code> — the chromosome 11 DNA sequence only (~135 MB, vs ~3 GB for the full genome). <code>GRCh38.chr11.gtf</code> — gene annotations restricted to chromosome 11 (~3 MB). <code>GRCh38.cdna.chr11.fa</code> — chr11 transcript sequences for the Salmon index. Using a single-chromosome reference means STAR only needs ~4 GB RAM for the index and alignment is very fast.</p>
+                    <p><code>references/chr11/GRCh38.chr11.fa</code> — the chromosome 11 DNA sequence only (~135 MB, vs ~3 GB for the full genome). <code>GRCh38.chr11.gtf</code> — gene annotations restricted to chromosome 11 (~3 MB). <code>GRCh38.cdna.chr11.fa</code> — chr11 transcript sequences for the Salmon index. Using a single-chromosome reference means STAR only needs ~4 GB RAM for the index and alignment is very fast.</p>
                 </div>
             </div>
 
@@ -331,9 +330,9 @@ ls -lh aligned/KO_1_SRR10045016/</code></pre>
     sample=$(basename $(dirname "$bam"))
     echo "Marking duplicates for $sample ..."
     picard MarkDuplicates \
-        I=aligned/${sample}/Aligned.sortedByCoord.out.bam \
-        O=aligned/${sample}/marked_dup.bam \
-        M=aligned/${sample}/dup_metrics.txt
+        -I aligned/${sample}/Aligned.sortedByCoord.out.bam \
+        -O aligned/${sample}/marked_dup.bam \
+        -M aligned/${sample}/dup_metrics.txt
     samtools index aligned/${sample}/marked_dup.bam
 done</code></pre>
                 <div class="info-box note">
