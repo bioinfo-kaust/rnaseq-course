@@ -195,7 +195,8 @@ for r1 in trimmed/*_trimmed_1.fastq.gz; do
         --alignSJoverhangMin 8 \
         --alignSJDBoverhangMin 1 \
         --quantMode GeneCounts \
-        --runMode alignReads
+        --runMode alignReads \
+        --sjdbOverhang 62
 
     echo "Done: $sample"
 done</code></pre>

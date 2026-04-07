@@ -207,8 +207,8 @@ cat samplesheet.csv</code></pre>
 nextflow run nf-core/rnaseq -r 3.23.0 \
     --input samplesheet.csv \
     --outdir results \
-    --fasta /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.dna.chromosome.11.fa \
-    --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
+    --fasta /biocorelab/BIX/resources/genomes/workshops/references/chr11/GRCh38.chr11.fa \
+    --gtf /biocorelab/BIX/resources/genomes/workshops/references/chr11//GRCh38.chr11.gtf \
     --aligner star_salmon \
     --pseudo_aligner salmon \
     --trimmer fastp \
@@ -267,8 +267,8 @@ export NXF_SINGULARITY_CACHEDIR=/ibex/user/$USER/singularity_cache
 nextflow run nf-core/rnaseq \
     --input samplesheet.csv \
     --outdir results \
-    --fasta /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.dna.chromosome.11.fa \
-    --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
+    --fasta /biocorelab/BIX/resources/genomes/workshops/references/chr11/GRCh38.chr11.fa \
+    --gtf /biocorelab/BIX/resources/genomes/workshops/references/chr11/GRCh38.chr11.gtf \
     --aligner star_salmon \
     --pseudo_aligner salmon \
     --trimmer fastp \
@@ -357,8 +357,8 @@ cat work/b3/12ef45*/.command.out
 nextflow run nf-core/rnaseq \
     --input samplesheet.csv \
     --outdir results \
-    --fasta /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.dna.chromosome.11.fa \
-    --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
+    --fasta /biocorelab/BIX/resources/genomes/workshops/references/chr11/GRCh38.chr11.gtf \
+    --gtf /biocorelab/BIX/resources/genomes/workshops/references/chr11/GRCh38.chr11.gtf \
     --aligner star_salmon \
     --genome_size 135086622 \
     --star_index_bases 11 \
