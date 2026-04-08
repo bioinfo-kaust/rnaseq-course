@@ -260,7 +260,7 @@ dds <- DESeq(dds)
 
 # Check size factors — these represent relative sequencing depth per sample
 # Values close to 1.0 indicate similar library sizes
-sizeFactors(dds)
+normalizationFactors(dds)
 
 # View the available results names (contrasts defined by the model)
 resultsNames(dds)</code></pre>
