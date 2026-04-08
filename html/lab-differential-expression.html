@@ -355,9 +355,12 @@ cat("Significant (padj < 0.05):", sum(res_df$padj < 0.05, na.rm=TRUE), "\n")</co
                 <p>The MA plot shows the relationship between mean expression (x-axis) and log2 fold-change (y-axis). It helps assess whether the LFC shrinkage worked correctly and whether there is any systematic bias.</p>
                 <pre><code># MA plot using the shrunken LFC estimates
 # Points in blue are significant at padj < 0.05
+png("results/MA_plot_TDP43_KD_vs_Control.png", width = 800, height = 600, res = 120)
 plotMA(res_shrunk,
     ylim = c(-5, 5),
-    main = "MA Plot: TDP-43 KD vs. Control")</code></pre>
+    main = "MA Plot: TDP-43 KD vs. Control")
+dev.off()
+</code></pre>
                 <div class="info-box note">
                     <strong>Interpreting the MA Plot</strong>
                     <p>In a well-normalized experiment, the bulk of genes (grey dots) should cluster around LFC = 0 across all expression levels. Colored points are significant hits. LFC shrinkage ensures that low-expression genes (left side of the plot) no longer show extreme fold-change values — without shrinkage, low-count genes scatter wildly along the y-axis.</p>
@@ -421,7 +424,7 @@ cat("Number of genes selected for heatmap:", length(top50), "\n")
 
 # Apply variance-stabilizing transformation (VST) for visualization
 # blind=FALSE uses the design matrix — preferred when groups differ
-vsd <- vst(dds, blind=FALSE)
+vsd <- varianceStabilizingTransformation(dds, blind=FALSE)
 
 # Extract the VST-normalized count matrix for top 50 genes
 mat <- assay(vsd)[top50, ]
