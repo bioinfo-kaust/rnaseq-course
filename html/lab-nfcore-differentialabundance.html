@@ -130,19 +130,19 @@ pwd</code></pre>
 
 cat > samplesheet.csv &lt;&lt;'EOF'
 sample,condition,replicate
-KO_1_SRR10045016,TDP43_KD,1
-KO_2_SRR10045017,TDP43_KD,2
-KO_3_SRR10045018,TDP43_KD,3
-WT_1_SRR10045019,control,1
-WT_2_SRR10045020,control,2
-WT_3_SRR10045021,control,3
+KO_1,TDP43_KD,1
+KO_2,TDP43_KD,2
+KO_3,TDP43_KD,3
+WT_1,control,1
+WT_2,control,2
+WT_3,control,3
 EOF
 
 # Verify the file
 cat samplesheet.csv</code></pre>
                 <div class="info-box note">
                     <strong>Adapting this samplesheet to your own study</strong>
-                    <p>The sample IDs in the <code>sample</code> column must exactly match the subdirectory names produced by <code>nf-core/rnaseq</code> inside the Salmon results folder (e.g., <code>results/star_salmon/salmon/KO_1_SRR10045016/</code>). Always verify these names against the GEO page metadata for your dataset. For GSE136366, the KO_* samples are TARDBP/TDP-43 siRNA knockdowns and the WT_* samples are scramble-control replicates.</p>
+                    <p>The sample IDs in the <code>sample</code> column must exactly match the subdirectory names produced by <code>nf-core/rnaseq</code> inside the Salmon results folder (e.g., <code>results/star_salmon/KO_1/</code>). Always verify these names against the GEO page metadata for your dataset. For GSE136366, the KO_* samples are TARDBP/TDP-43 siRNA knockdowns and the WT_* samples are scramble-control replicates.</p>
                 </div>
             </div>
 
@@ -179,13 +179,13 @@ cat contrasts.csv</code></pre>
             <div class="step" data-step="6">
                 <h3>Verify the Salmon output files</h3>
                 <pre><code># Check the Salmon results directory from nf-core/rnaseq
-ls /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon/
+ls /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/
 
 # Confirm each sample has a quant.sf file
-ls /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon/KO_1_SRR10045016/
+ls /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/KO_1/
 
 # Quick sanity check on one quant.sf file
-head -5 /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon/KO_1_SRR10045016/quant.sf</code></pre>
+head -5 /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/KO_1/quant.sf</code></pre>
                 <div class="info-box tip">
                     <strong>What is in quant.sf?</strong>
                     <p>Each <code>quant.sf</code> file contains five columns: <code>Name</code> (transcript ID), <code>Length</code>, <code>EffectiveLength</code>, <code>TPM</code> (transcripts per million), and <code>NumReads</code> (estimated read counts). The pipeline uses these estimated counts as input to DESeq2 via the <code>tximeta</code> R package, which correctly accounts for differences in effective transcript lengths.</p>
@@ -204,11 +204,10 @@ head -5 /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon/KO_1_
                 <h3>Full pipeline run command</h3>
                 <pre><code>cd /ibex/user/$USER/workshop/nfcore_da
 
-nextflow run nf-core/differentialabundance \
+nextflow run nf-core/differentialabundance -r 1.5.0 \
     --input samplesheet.csv \
     --contrasts contrasts.csv \
-    --matrix /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon \
-    --input_type salmon \
+    --matrix /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon.merged.gene_counts_length_scaled.tsv \
     --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
     --outdir da_results \
     --deseq2_vst_nsub 500 \
@@ -242,11 +241,10 @@ sbatch --job-name=nfcore_da \
     --output=da_nextflow_%j.log \
     --wrap="module purge && module load nextflow && module load singularity && \
         export NXF_SINGULARITY_CACHEDIR=/ibex/user/$USER/singularity_cache && \
-        nextflow run nf-core/differentialabundance \
+        nextflow run nf-core/differentialabundance -r 1.5.0 \
             --input samplesheet.csv \
             --contrasts contrasts.csv \
-            --matrix /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon \
-            --input_type salmon \
+            --matrix /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon.merged.gene_counts_length_scaled.tsv \
             --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
             --outdir da_results \
             --deseq2_vst_nsub 500 \
