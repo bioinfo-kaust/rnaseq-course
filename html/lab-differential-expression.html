@@ -69,18 +69,17 @@
             <p>All analysis in this lab is performed in R. You can use an interactive R session on Ibex or connect via RStudio through the Ibex Open OnDemand (OOD) portal.</p>
 
             <div class="step" data-step="1">
-                <h3>Start R on Ibex</h3>
+                <h3>Start R session</h3>
                 <pre><code># Connect to Ibex and start an interactive session
 ssh username@ilogin.ibex.kaust.edu.sa
 srun --pty --time=4:00:00 --mem=32G --cpus-per-task=4 bash
 
-# Load R module and launch
-module load R
-R
+# Activate rnaseq conda env, see instructions on the <a href="setup.html#conda">setup</a> page
+conda activate rnaseq
 
-# Alternatively, access RStudio through Ibex OOD:
-# https://ood.ibex.kaust.edu.sa
-# Select: Interactive Apps > RStudio Server</code></pre>
+#Start an interactive R session
+R
+</code></pre>
             </div>
 
             <div class="step" data-step="2">
