@@ -1,0 +1,555 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 7: Differential Expression Analysis — RNA-seq Data Analysis Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo">The Bioinformatics Platform - KAUST</a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <h1>Lab 7: Differential Expression Analysis</h1>
+
+        <div class="lab-nav">
+            <a href="#background"><span class="part-num">Background</span><span class="part-label">DEA Overview</span></a>
+            <a href="#part1"><span class="part-num">Part 1</span><span class="part-label">Setup</span></a>
+            <a href="#part2"><span class="part-num">Part 2</span><span class="part-label">Import &amp; DESeq2 Object</span></a>
+            <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">Run DESeq2</span></a>
+            <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">Visualizations</span></a>
+        </div>
+
+        <p>In this lab, you will use <strong>DESeq2</strong> to identify differentially expressed genes (DEGs) in the GSE136366 dataset — an RNA-seq study of TDP-43 (TARDBP) knockdown in human cells. You will import Salmon quantification counts, build a statistical model, run DE analysis with log fold-change shrinkage, and produce publication-quality visualizations.</p>
+
+        <div class="info-box note">
+            <strong>Learning Objectives</strong>
+            <ul>
+                <li>Import Salmon quantification output into R using <code>tximport</code></li>
+                <li>Construct a DESeq2 model with appropriate experimental design</li>
+                <li>Run differential expression analysis and apply LFC shrinkage with <code>apeglm</code></li>
+                <li>Extract, filter, and interpret DESeq2 results</li>
+                <li>Generate volcano plots, MA plots, and a heatmap of top DEGs</li>
+            </ul>
+        </div>
+
+        <!-- ====================== -->
+        <!-- Dataset Background     -->
+        <!-- ====================== -->
+        <section id="background">
+            <h2>Dataset Background: GSE136366</h2>
+            <p><strong>GSE136366</strong> is a human RNA-seq dataset studying the effect of TDP-43 (encoded by <em>TARDBP</em>) knockdown. TDP-43 is an RNA-binding protein involved in RNA splicing and stability, and is implicated in ALS and frontotemporal dementia. The experimental design includes control samples and TDP-43 knockdown (KD) samples, each with biological replicates.</p>
+            <table class="schedule-table">
+                <tr><th>Property</th><th>Value</th></tr>
+                <tr><td>GEO Accession</td><td><code>GSE136366</code></td></tr>
+                <tr><td>Organism</td><td><em>Homo sapiens</em></td></tr>
+                <tr><td>Comparison</td><td>TDP-43 knockdown vs. control</td></tr>
+                <tr><td>Library Layout</td><td>Paired-end, Illumina</td></tr>
+                <tr><td>Reference Genome</td><td>GRCh38 (hg38)</td></tr>
+                <tr><td>Quantification</td><td>Salmon (via nf-core/rnaseq or manual run)</td></tr>
+            </table>
+        </section>
+
+        <!-- ====================== -->
+        <!-- Part 1: Setup          -->
+        <!-- ====================== -->
+        <section id="part1">
+            <h2>Part 1: Setup</h2>
+            <p>All analysis in this lab is performed in R. You can use an interactive R session on Ibex or connect via RStudio through the Ibex Open OnDemand (OOD) portal.</p>
+
+            <div class="step" data-step="1">
+                <h3>Start R on Ibex</h3>
+                <pre><code># Connect to Ibex and start an interactive session
+ssh username@ilogin.ibex.kaust.edu.sa
+srun --pty --time=4:00:00 --mem=32G --cpus-per-task=4 bash
+
+# Load R module and launch
+module load R
+R
+
+# Alternatively, access RStudio through Ibex OOD:
+# https://ood.ibex.kaust.edu.sa
+# Select: Interactive Apps > RStudio Server</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Navigate to your workshop directory</h3>
+                <pre><code># Set your working directory to the workshop folder
+setwd("/ibex/user/$USER/workshop")
+
+# Verify
+getwd()
+list.files()</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Load required libraries</h3>
+                <p>The following R packages are required. Install any that are missing before proceeding.</p>
+                <pre><code># Core DE analysis packages
+library(tximport)
+library(DESeq2)
+
+# Visualization
+library(ggplot2)
+library(pheatmap)
+library(ggrepel)   # For non-overlapping labels on volcano plot
+                   # Install if needed: install.packages("ggrepel")
+
+# Data manipulation
+library(dplyr)
+library(tibble)
+
+# For tx2gene mapping from the GTF (chr11 lab approach)
+library(GenomicFeatures)
+
+# For LFC shrinkage
+library(apeglm)    # Install if needed: BiocManager::install("apeglm")</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Installing Bioconductor Packages on Ibex</strong>
+                    <p>DESeq2 and related packages are Bioconductor packages. Install them with:</p>
+                    <pre><code>if (!requireNamespace("BiocManager", quietly=TRUE))
+    install.packages("BiocManager")
+BiocManager::install(c("DESeq2", "tximport", "apeglm", "GenomicFeatures"))</code></pre>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Part 2: Import Counts and Build DESeq2 Object -->
+        <!-- ============================================= -->
+        <section id="part2">
+            <h2>Part 2: Import Counts and Build DESeq2 Object</h2>
+            <p>DESeq2 requires raw, un-normalized counts as input. We will use <code>tximport</code> to import Salmon's quantification output, which correctly accounts for transcript length differences across samples (important when using count-based methods like DESeq2).</p>
+
+            <div class="info-box tip">
+                <strong>Chr11 data scope</strong>
+                <p>In this lab the Salmon counts come from nf-core/rnaseq run on <strong>chr11-filtered reads</strong> (Lab 6). Only genes on chromosome 11 are quantified. The DESeq2 workflow, contrasts, and visualizations are identical to a full-genome analysis — the chr11 scope simply means the number of tested genes and significant DEGs will be smaller.</p>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Build a transcript-to-gene mapping (tx2gene)</h3>
+                <p>Salmon quantifies at the transcript level. We need a mapping table from transcript IDs to gene IDs to aggregate counts to the gene level. We will build this directly from the chr11 GTF file.</p>
+                <pre><code># Build transcript-to-gene mapping from the chr11 GTF
+library(GenomicFeatures)
+gtf_path <- "/biocorelab/BIX/resources/genomes/workshops/references/chr11/GRCh38.chr11.gtf"
+
+library(txdbmaker)
+txdb <- makeTxDbFromGFF(gtf_path, format = "gtf")
+
+k       <- keys(txdb, keytype = "TXNAME")
+tx2gene <- select(txdb, k, "GENEID", "TXNAME")
+
+head(tx2gene)
+cat("Transcript-to-gene mappings:", nrow(tx2gene), "\n")</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Locate Salmon quantification files</h3>
+                <p>Salmon produces a <code>quant.sf</code> file for each sample. These are found in the nf-core/rnaseq output at the path shown below.</p>
+                <pre><code># Define the six GSE136366 sample IDs
+sample_ids <- c(
+    "KO_1", "KO_2", "KO_3",
+    "WT_1", "WT_2", "WT_3"
+)
+
+# Salmon counts from nf-core/rnaseq output
+WORKSHOP <- paste0("/ibex/user/", Sys.getenv("USER"), "/workshop")
+quant_files <- file.path(WORKSHOP, "nfcore_rnaseq/results/star_salmon/", sample_ids, "quant.sf")
+names(quant_files) <- sample_ids
+
+# Verify all files exist before importing
+stopifnot(all(file.exists(quant_files)))
+quant_files</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Import counts with tximport</h3>
+                <pre><code># Import Salmon output at the gene level using tx2gene
+txi <- tximport(
+    quant_files,
+    type      = "salmon",
+    tx2gene   = tx2gene,
+    ignoreTxVersion = TRUE   # Strip transcript version suffix if needed
+)
+
+# txi is a list with three matrices: counts, abundance (TPM), length
+names(txi)
+
+# Check dimensions: rows = genes, columns = samples
+dim(txi$counts)
+head(txi$counts)</code></pre>
+                <div class="info-box note">
+                    <strong>What does tximport do?</strong>
+                    <p><code>tximport</code> aggregates transcript-level estimates to the gene level. Importantly, it imports both the estimated counts and the transcript length offsets (average transcript length per gene per sample). When these are passed to DESeq2, it adjusts for differences in isoform usage across samples — this is more accurate than simply summing raw counts.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Create sample metadata (coldata)</h3>
+                <p>GSE136366 contains control samples (WT_*) and TDP-43 knockdown (KO_*) samples. The sample IDs encode the condition, making it straightforward to define the experimental design.</p>
+                <pre><code># GSE136366: KO_* samples are TDP-43 knockdown, WT_* are controls
+sample_ids <- c(
+    "KO_1", "KO_2", "KO_3",
+    "WT_1", "WT_2", "WT_3"
+)
+
+condition <- ifelse(grepl("^KO", sample_ids), "TDP43_KD", "control")
+
+coldata <- data.frame(
+    sample    = sample_ids,
+    condition = factor(condition, levels = c("control", "TDP43_KD")),
+    row.names = sample_ids
+)
+
+coldata$condition <- relevel(coldata$condition, ref = "control")
+
+# Verify
+coldata
+levels(coldata$condition)   # Should show: "control" "TDP43_KD"</code></pre>
+                <div class="info-box warning">
+                    <strong>Important: Verify Sample Order</strong>
+                    <p>The order of samples in <code>coldata</code> must exactly match the order of columns in the <code>txi$counts</code> matrix. Check this with <code>all(rownames(coldata) == colnames(txi$counts))</code> — it must return <code>TRUE</code> before proceeding. Since both <code>quant_files</code> and <code>coldata</code> are built from the same <code>sample_ids</code> vector, the order is guaranteed to match.</p>
+                    <pre><code># This must return TRUE
+all(rownames(coldata) == colnames(txi$counts))</code></pre>
+                </div>
+            </div>
+
+            <div class="step" data-step="5">
+                <h3>Build the DESeq2 object and pre-filter</h3>
+                <pre><code># Create DESeqDataSet from tximport object
+dds <- DESeqDataSetFromTximport(txi, colData=coldata, design=~condition)
+
+# Inspect the object
+dds
+
+# Pre-filter: remove genes with very low counts across all samples
+# Keep genes with at least 10 counts in at least 3 samples
+keep <- rowSums(counts(dds) >= 10) >= 3
+dds  <- dds[keep, ]
+
+cat("Genes retained after filtering:", nrow(dds), "\n")</code></pre>
+                <div class="info-box note">
+                    <strong>Why Pre-filter?</strong>
+                    <p>Genes with very few reads across all samples carry no statistical power and inflate the multiple testing burden. Removing them speeds up the analysis and improves the sensitivity of adjusted p-value calculations. A common threshold is: keep genes where at least N samples have a count of 10 or more, where N equals the size of the smallest group (here, 3 replicates).</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================= -->
+        <!-- Part 3: Run DESeq2        -->
+        <!-- ========================= -->
+        <section id="part3">
+            <h2>Part 3: Run DESeq2</h2>
+            <p>DESeq2 fits a negative binomial generalized linear model to estimate gene-wise dispersion and tests for differential expression using the Wald test.</p>
+
+            <div class="step" data-step="1">
+                <h3>Run the DESeq2 analysis</h3>
+                <pre><code># Run the full DESeq2 pipeline (normalization, dispersion estimation, model fitting)
+dds <- DESeq(dds)
+
+# Check size factors — these represent relative sequencing depth per sample
+# Values close to 1.0 indicate similar library sizes
+sizeFactors(dds)
+
+# View the available results names (contrasts defined by the model)
+resultsNames(dds)</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Inspect dispersion estimates</h3>
+                <pre><code># Plot dispersion estimates — useful quality check
+plotDispEsts(dds,
+    main="Dispersion Estimates: GSE136366")</code></pre>
+                <div class="info-box note">
+                    <strong>Reading the Dispersion Plot</strong>
+                    <p>The dispersion plot shows gene-wise dispersion estimates (black dots), the fitted mean-dispersion trend (red line), and the final shrunken estimates (blue dots). In a well-behaved dataset you should see dispersion decrease as mean expression increases, and the shrunken estimates clustering around the trend line. Outlier genes with very high dispersion will appear as isolated black dots above the trend.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Extract results</h3>
+                <pre><code># Extract DE results for the contrast: TDP43_KD vs. control
+res <- results(dds, contrast=c("condition", "TDP43_KD", "control"))
+
+# Print a summary: total significant genes at default alpha=0.1
+summary(res)
+
+# View the top results sorted by adjusted p-value
+head(res[order(res$padj), ])</code></pre>
+                <div class="info-box note">
+                    <strong>Understanding the p-value vs. Adjusted p-value</strong>
+                    <p>In a typical RNA-seq experiment, DESeq2 tests tens of thousands of genes simultaneously. If we used the raw p-value (threshold 0.05), we would expect 5% of all tests to be false positives by chance alone — that could mean thousands of spurious hits. The <strong>adjusted p-value</strong> (also called the FDR, or Benjamini-Hochberg corrected p-value) accounts for this multiple testing problem by controlling the expected proportion of false discoveries among all significant results. Always use <code>padj</code>, not <code>pvalue</code>, for filtering significant genes.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Apply LFC shrinkage with apeglm</h3>
+                <pre><code># Apply log fold-change shrinkage using the apeglm method
+# coef must match a name from resultsNames(dds)
+res_shrunk <- lfcShrink(
+    dds,
+    coef = "condition_TDP43_KD_vs_control",
+    type = "apeglm"
+)
+
+# Summary of shrunken results
+summary(res_shrunk)</code></pre>
+                <div class="info-box note">
+                    <strong>Why Apply LFC Shrinkage?</strong>
+                    <p>For genes with very low counts, the raw log2 fold-change estimates are noisy and often extreme (e.g., LFC = 8 for a gene with 1 count in one group and 3 in another). LFC shrinkage pulls these unreliable estimates toward zero, weighted by the amount of information (expression level and dispersion) available for each gene. This produces more accurate and interpretable fold-change values, particularly for ranking and visualization. The <strong>apeglm</strong> method (Adaptive t Prior shrinkage) is the recommended default in current DESeq2 versions.</p>
+                    <p>Note: shrinkage does <em>not</em> change p-values or which genes are called significant — only the fold-change estimates are modified.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="5">
+                <h3>Export results to a table</h3>
+                <pre><code># Convert results to a data frame and add gene IDs as a column
+res_df <- as.data.frame(res_shrunk) %>%
+    tibble::rownames_to_column("gene_id") %>%
+    arrange(padj)
+
+# Quick look at the top hits
+head(res_df, 20)
+
+# Save the full results table
+dir.create("results", showWarnings=FALSE)
+write.csv(res_df,
+    file      = "results/DESeq2_TDP43KD_vs_control.csv",
+    row.names = FALSE)
+
+cat("Results saved to results/DESeq2_TDP43KD_vs_control.csv\n")
+cat("Total genes tested:", nrow(res_df), "\n")
+cat("Significant (padj < 0.05):", sum(res_df$padj < 0.05, na.rm=TRUE), "\n")</code></pre>
+                <div class="info-box tip">
+                    <strong>Recommended Thresholds for Filtering DEGs</strong>
+                    <p>There is no universal threshold, but a widely used convention in RNA-seq studies is:</p>
+                    <ul>
+                        <li><strong>Adjusted p-value:</strong> <code>padj &lt; 0.05</code> — controls the false discovery rate at 5%</li>
+                        <li><strong>Log2 fold-change:</strong> <code>|log2FoldChange| &gt; 1</code> — corresponds to a 2-fold change, filtering for biologically meaningful effect sizes</li>
+                    </ul>
+                    <p>More stringent studies use <code>padj &lt; 0.01</code> and <code>|LFC| &gt; 2</code>. Always report the exact thresholds used in your methods section. Note that the LFC threshold is separate from the statistical significance threshold — a gene can be statistically significant but biologically uninteresting if its fold-change is very small.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ========================= -->
+        <!-- Part 4: Visualizations    -->
+        <!-- ========================= -->
+        <section id="part4">
+            <h2>Part 4: Visualizations</h2>
+            <p>Visualizations help communicate the scale and pattern of differential expression. We will produce three standard plots: an MA plot, a volcano plot, and a heatmap of the top DEGs.</p>
+
+            <div class="step" data-step="1">
+                <h3>MA Plot</h3>
+                <p>The MA plot shows the relationship between mean expression (x-axis) and log2 fold-change (y-axis). It helps assess whether the LFC shrinkage worked correctly and whether there is any systematic bias.</p>
+                <pre><code># MA plot using the shrunken LFC estimates
+# Points in blue are significant at padj < 0.05
+plotMA(res_shrunk,
+    ylim = c(-5, 5),
+    main = "MA Plot: TDP-43 KD vs. Control")</code></pre>
+                <div class="info-box note">
+                    <strong>Interpreting the MA Plot</strong>
+                    <p>In a well-normalized experiment, the bulk of genes (grey dots) should cluster around LFC = 0 across all expression levels. Colored points are significant hits. LFC shrinkage ensures that low-expression genes (left side of the plot) no longer show extreme fold-change values — without shrinkage, low-count genes scatter wildly along the y-axis.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Volcano Plot</h3>
+                <p>The volcano plot combines statistical significance and fold-change magnitude, allowing rapid identification of the most strongly dysregulated genes.</p>
+                <pre><code># Classify genes by significance and direction
+res_df <- res_df %>%
+    mutate(
+        significance = case_when(
+            padj < 0.05 & log2FoldChange >  1 ~ "Up",
+            padj < 0.05 & log2FoldChange < -1 ~ "Down",
+            TRUE                               ~ "NS"
+        )
+    )
+
+# Count genes in each category
+table(res_df$significance)
+
+# Build the volcano plot
+ggplot(res_df %>% filter(!is.na(padj)),
+       aes(x=log2FoldChange, y=-log10(padj))) +
+    geom_point(aes(color=significance), alpha=0.5, size=1) +
+    scale_color_manual(
+        values = c("Up"="#D62728", "Down"="#1F77B4", "NS"="grey60")
+    ) +
+    geom_vline(xintercept=c(-1, 1), linetype="dashed", color="grey40") +
+    geom_hline(yintercept=-log10(0.05), linetype="dashed", color="grey40") +
+    geom_text_repel(
+        data    = res_df %>% filter(padj < 0.001 & abs(log2FoldChange) > 2) %>% head(20),
+        aes(label=gene_id),
+        size    = 2.5,
+        max.overlaps = 20
+    ) +
+    labs(
+        x     = "Log2 Fold Change",
+        y     = "-log10(adjusted p-value)",
+        title = "Volcano Plot: TDP-43 KD vs. Control",
+        color = "Regulation"
+    ) +
+    theme_bw()
+
+# Save the plot
+ggsave("results/volcano_plot.pdf", width=8, height=6)
+cat("Volcano plot saved to results/volcano_plot.pdf\n")</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Heatmap of Top 50 DEGs</h3>
+                <p>A heatmap of the most significantly differentially expressed genes shows expression patterns across all samples and whether replicates cluster together as expected.</p>
+                <pre><code># Select the top 50 significant DEGs by adjusted p-value
+top50 <- res_df %>%
+    filter(padj < 0.05, !is.na(padj)) %>%
+    slice_min(padj, n=50) %>%
+    pull(gene_id)
+
+cat("Number of genes selected for heatmap:", length(top50), "\n")
+
+# Apply variance-stabilizing transformation (VST) for visualization
+# blind=FALSE uses the design matrix — preferred when groups differ
+vsd <- vst(dds, blind=FALSE)
+
+# Extract the VST-normalized count matrix for top 50 genes
+mat <- assay(vsd)[top50, ]
+
+# Center each gene (subtract row mean) to highlight relative changes
+mat <- mat - rowMeans(mat)
+
+# Build annotation for columns (samples)
+annotation_col <- data.frame(
+    condition = coldata$condition,
+    row.names = rownames(coldata)
+)
+
+# Draw the heatmap and save as PDF
+pheatmap(mat,
+    annotation_col = annotation_col,
+    cluster_rows   = TRUE,
+    cluster_cols   = TRUE,
+    show_rownames  = TRUE,
+    fontsize_row   = 7,
+    main           = "Top 50 DEGs: TDP-43 KD vs. Control",
+    filename       = "results/heatmap_top50DEGs.pdf"
+)
+
+cat("Heatmap saved to results/heatmap_top50DEGs.pdf\n")</code></pre>
+                <div class="info-box note">
+                    <strong>VST vs. rlog Normalization</strong>
+                    <p>For visualization purposes, raw counts are not suitable because highly expressed genes dominate the color scale. DESeq2 provides two variance-stabilizing transformations:</p>
+                    <ul>
+                        <li><strong>VST (<code>vst()</code>)</strong> — Fast, recommended for datasets with more than ~30 samples or for quick exploratory analysis.</li>
+                        <li><strong>rlog (<code>rlog()</code>)</strong> — Slower but may perform better for small datasets (&lt; 30 samples) with very different library sizes.</li>
+                    </ul>
+                    <p>Neither transformation is used for the actual DE testing — DESeq2 uses raw counts internally for that. VST/rlog are only for visualization and PCA.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============ -->
+        <!-- Exercises    -->
+        <!-- ============ -->
+        <section id="exercises">
+            <h2>Exercises</h2>
+            <p>Work through the questions below using the DESeq2 results you generated. Use the commands from the sections above as a starting point.</p>
+
+            <div class="card">
+                <h3>Exercise 1: Count Significant DEGs</h3>
+                <p>How many genes are significantly upregulated (padj &lt; 0.05 <strong>and</strong> log2FoldChange &gt; 1)? How many are significantly downregulated (padj &lt; 0.05 <strong>and</strong> log2FoldChange &lt; -1)?</p>
+                <p><em>Hint: Use <code>table(res_df$significance)</code> after creating the significance column, or filter the data frame directly with <code>dplyr::filter()</code>.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 2: Top Hit — Biological Relevance</h3>
+                <p>What is the gene with the most significant adjusted p-value in the results? Look it up in a gene database (e.g., NCBI Gene, UniProt, or GeneCards). Is it biologically relevant to TDP-43 function or ALS?</p>
+                <p><em>Hint: Run <code>head(res_df, 1)</code> to find the top gene. Search the gene name at <a href="https://www.ncbi.nlm.nih.gov/gene/" target="_blank">https://www.ncbi.nlm.nih.gov/gene/</a>.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 3: Dispersion Plot Interpretation</h3>
+                <p>Run <code>plotDispEsts(dds)</code>. What does the dispersion plot show about the quality of the data? Are the gene-wise dispersion estimates following the expected trend? Are there any outlier genes?</p>
+                <p><em>Hint: In a high-quality dataset, dispersion should decrease as mean count increases. The fitted trend (red curve) and shrunken estimates (blue dots) should be consistent. Isolated black dots far above the trend may indicate problematic genes.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 4: Effect of Significance Threshold</h3>
+                <p>Re-run <code>results()</code> with a stricter significance threshold of <code>alpha=0.01</code> instead of the default <code>alpha=0.1</code>. How does the number of significant genes change? Why does the <code>alpha</code> argument to <code>results()</code> affect the output?</p>
+                <p><em>Hint: Run <code>res_strict &lt;- results(dds, contrast=c("condition", "TDP43_KD", "control"), alpha=0.01)</code>, then <code>summary(res_strict)</code>. The <code>alpha</code> parameter affects the independent filtering step in DESeq2, which optimizes the number of significant genes.</em></p>
+            </div>
+        </section>
+
+        <!-- ========= -->
+        <!-- Summary   -->
+        <!-- ========= -->
+        <section id="summary">
+            <h2>Summary</h2>
+            <p>In this lab, you have:</p>
+            <ul>
+                <li>Imported Salmon transcript-level quantifications into R using <code>tximport</code> with a transcript-to-gene mapping</li>
+                <li>Built a DESeq2 dataset from tximport output with the correct experimental design formula</li>
+                <li>Pre-filtered low-count genes and built the DESeq2 model with size factor normalization and dispersion estimation</li>
+                <li>Extracted differential expression results for the TDP-43 KD vs. control contrast</li>
+                <li>Applied LFC shrinkage using <code>apeglm</code> to obtain stable, interpretable fold-change estimates</li>
+                <li>Saved a full DESeq2 results table as a CSV file</li>
+                <li>Generated an MA plot, volcano plot, and heatmap of the top 50 differentially expressed genes</li>
+            </ul>
+            <p>
+                <strong>Previous:</strong> <a href="lab-nfcore-rnaseq.html">Lab 6: nf-core/rnaseq Workflow</a>
+                &nbsp;&mdash;&nbsp;
+                <strong>Next:</strong> <a href="lab-functional-enrichment.html">Lab 8: Functional Enrichment Analysis</a>
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Data Analysis Course &mdash; KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        // Add copy buttons to all code blocks
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('pre');
+            codeBlocks.forEach(function(pre) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(pre);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', function() {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.textContent : pre.textContent;
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = 'Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>
