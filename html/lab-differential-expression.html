@@ -269,8 +269,9 @@ resultsNames(dds)</code></pre>
             <div class="step" data-step="2">
                 <h3>Inspect dispersion estimates</h3>
                 <pre><code># Plot dispersion estimates — useful quality check
-plotDispEsts(dds,
-    main="Dispersion Estimates: GSE136366")</code></pre>
+pdf("dispersion_estimates.pdf")
+plotDispEsts(dds, main="Dispersion Estimates: GSE136366")
+dev.off()</code></pre>
                 <div class="info-box note">
                     <strong>Reading the Dispersion Plot</strong>
                     <p>The dispersion plot shows gene-wise dispersion estimates (black dots), the fitted mean-dispersion trend (red line), and the final shrunken estimates (blue dots). In a well-behaved dataset you should see dispersion decrease as mean expression increases, and the shrunken estimates clustering around the trend line. Outlier genes with very high dispersion will appear as isolated black dots above the trend.</p>
