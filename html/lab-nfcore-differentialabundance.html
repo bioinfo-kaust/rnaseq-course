@@ -1,0 +1,547 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 9: nf-core/differentialabundance — RNA-seq Data Analysis Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo">The Bioinformatics Platform - KAUST</a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <h1>Lab 9: Standardized Differential Abundance Analysis with nf-core/differentialabundance</h1>
+
+        <div class="lab-nav">
+            <a href="#part1"><span class="part-num">Part 1</span><span class="part-label">Setup</span></a>
+            <a href="#part2"><span class="part-num">Part 2</span><span class="part-label">Prepare Inputs</span></a>
+            <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">Run Pipeline</span></a>
+            <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">Output Structure</span></a>
+            <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">Shiny Report</span></a>
+            <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">MultiQC Report</span></a>
+        </div>
+
+        <p>In this lab, you will run the <code>nf-core/differentialabundance</code> workflow on the GSE136366 (TDP-43/TARDBP knockdown) dataset using Salmon quantification output produced in the <strong>nf-core/rnaseq chr11 run</strong> (Lab 6). Because the chr11-filtered Salmon output is used, the analysis covers only chromosome 11 genes — the pipeline steps and output structure are identical to a full-genome run. You will prepare the required input files, execute the pipeline on Ibex, and interpret the resulting DESeq2 output tables and interactive Shiny report.</p>
+
+        <div class="info-box tip">
+            <strong>Chr11 data scope</strong>
+            <p>This lab uses Salmon quantification files produced by the <strong>nf-core/rnaseq chr11 run</strong> in Lab 6. Only genes on chromosome 11 are quantified, so DESeq2 will test a subset of the full transcriptome. The pipeline steps, samplesheet format, contrasts file, and output structure are identical to a full-genome run — the chr11 scope simply reduces the number of tested genes and significant DEGs. For a full-genome analysis, replace <code>--gtf</code> with <code>--genome GRCh38.p14</code>.</p>
+        </div>
+
+        <div class="info-box note">
+            <strong>Learning Objectives</strong>
+            <ul>
+                <li>Understand the input requirements for <code>nf-core/differentialabundance</code></li>
+                <li>Prepare the sample metadata (samplesheet) and contrasts file</li>
+                <li>Run the pipeline on Ibex using Singularity containers</li>
+                <li>Navigate and interpret the output directory structure</li>
+                <li>Explore results using the interactive Shiny report</li>
+                <li>Interpret DESeq2 result columns and significance thresholds</li>
+                <li>Compare automated workflow results with manual DESeq2 analysis from Lab 7</li>
+            </ul>
+        </div>
+
+        <div class="info-box tip">
+            <strong>When to Use nf-core/differentialabundance vs. Manual DESeq2</strong>
+            <p>Both approaches call DESeq2 under the hood and will produce equivalent statistical results. Choose based on your needs:</p>
+            <table class="schedule-table">
+                <tr><th>Criterion</th><th>nf-core/differentialabundance</th><th>Manual DESeq2 (Jupyter/R)</th></tr>
+                <tr><td>Reproducibility</td><td>Pipeline version-locked, containerized</td><td>Depends on your environment management</td></tr>
+                <tr><td>Flexibility</td><td>Configured via parameters</td><td>Full scripting flexibility</td></tr>
+                <tr><td>Reporting</td><td>Automated interactive Shiny report + MultiQC</td><td>Custom plots and tables</td></tr>
+                <tr><td>Multiple contrasts</td><td>Defined declaratively in a CSV file</td><td>Manual loop or separate scripts</td></tr>
+                <tr><td>Best for</td><td>Standard comparisons, sharing with collaborators, auditable analyses</td><td>Custom filtering, novel visualizations, exploratory work</td></tr>
+            </table>
+        </div>
+
+        <!-- ================================= -->
+        <!-- Part 1: Setup                     -->
+        <!-- ================================= -->
+        <section id="part1">
+            <h2>Part 1: Connect to Ibex and Set Up Your Environment</h2>
+            <p>All commands in this lab are run on the Ibex HPC cluster. Connect via SSH and start an interactive session before proceeding.</p>
+
+            <div class="step" data-step="1">
+                <h3>Connect to Ibex and start an interactive session</h3>
+                <pre><code># Connect to Ibex
+ssh username@ilogin.ibex.kaust.edu.sa
+
+# Start an interactive session (do not run analyses on the login node)
+srun --pty --time=2:00:00 --mem=8G --cpus-per-task=2 bash</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Load Nextflow and Singularity</h3>
+                <pre><code># Clear any previously loaded modules, then load Nextflow and Singularity
+module purge
+module load nextflow
+module load singularity
+
+# Confirm the versions
+nextflow -version
+singularity --version</code></pre>
+                <div class="info-box note">
+                    <strong>Nextflow and Singularity on Ibex</strong>
+                    <p>nf-core pipelines run all tools inside Singularity containers. Both <code>nextflow</code> and <code>singularity</code> must be loaded before running any nf-core pipeline. The <code>-profile kaust</code> flag (used in Part 3) activates the KAUST institutional config, which configures SLURM job submission, Singularity container paths, and pre-built reference genomes automatically.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Create your working directory</h3>
+                <pre><code># Create a dedicated directory for this lab
+mkdir -p /ibex/user/$USER/workshop/nfcore_da
+cd /ibex/user/$USER/workshop/nfcore_da
+
+# Confirm your location
+pwd</code></pre>
+            </div>
+        </section>
+
+        <!-- ================================= -->
+        <!-- Part 2: Prepare Input Files       -->
+        <!-- ================================= -->
+        <section id="part2">
+            <h2>Part 2: Prepare Input Files</h2>
+            <p>The <code>nf-core/differentialabundance</code> pipeline requires three input files:</p>
+            <ol>
+                <li><strong>Sample metadata</strong> — a CSV describing each sample and its experimental condition (<code>samplesheet.csv</code>)</li>
+                <li><strong>Contrasts file</strong> — a CSV defining the statistical comparisons to perform (<code>contrasts.csv</code>)</li>
+                <li><strong>Quantification data</strong> — Salmon <code>quant.sf</code> output files from <code>nf-core/rnaseq</code> (already on disk)</li>
+            </ol>
+
+            <!-- Part 2A: Samplesheet -->
+            <h3 style="margin-top:2rem; padding:0.5rem 1rem; background:#e8f4fd; border-left:4px solid #2196F3;">A. Sample Metadata — <code>samplesheet.csv</code></h3>
+            <p>The samplesheet must have at minimum a <code>sample</code> column (matching the directory names inside the Salmon results folder) and one or more condition columns used for contrasts. Additional columns such as <code>replicate</code> are optional but recommended for clarity.</p>
+
+            <div class="step" data-step="4">
+                <h3>Create the samplesheet</h3>
+                <pre><code>cd /ibex/user/$USER/workshop/nfcore_da
+
+cat > samplesheet.csv &lt;&lt;'EOF'
+sample,condition,replicate
+KO_1_SRR10045016,TDP43_KD,1
+KO_2_SRR10045017,TDP43_KD,2
+KO_3_SRR10045018,TDP43_KD,3
+WT_1_SRR10045019,control,1
+WT_2_SRR10045020,control,2
+WT_3_SRR10045021,control,3
+EOF
+
+# Verify the file
+cat samplesheet.csv</code></pre>
+                <div class="info-box note">
+                    <strong>Adapting this samplesheet to your own study</strong>
+                    <p>The sample IDs in the <code>sample</code> column must exactly match the subdirectory names produced by <code>nf-core/rnaseq</code> inside the Salmon results folder (e.g., <code>results/star_salmon/salmon/KO_1_SRR10045016/</code>). Always verify these names against the GEO page metadata for your dataset. For GSE136366, the KO_* samples are TARDBP/TDP-43 siRNA knockdowns and the WT_* samples are scramble-control replicates.</p>
+                </div>
+            </div>
+
+            <!-- Part 2B: Contrasts -->
+            <h3 style="margin-top:2rem; padding:0.5rem 1rem; background:#e8f4fd; border-left:4px solid #2196F3;">B. Contrasts File — <code>contrasts.csv</code></h3>
+            <p>The contrasts file tells the pipeline which comparisons to perform. Each row defines one contrast.</p>
+
+            <div class="step" data-step="5">
+                <h3>Create the contrasts file</h3>
+                <pre><code>cat > contrasts.csv &lt;&lt;'EOF'
+id,variable,reference,target,blocking
+TDP43_KD_vs_control,condition,control,TDP43_KD,
+EOF
+
+# Verify the file
+cat contrasts.csv</code></pre>
+                <div class="info-box note">
+                    <strong>Contrasts file column definitions</strong>
+                    <table class="schedule-table">
+                        <tr><th>Column</th><th>Description</th><th>Example</th></tr>
+                        <tr><td><code>id</code></td><td>A unique name for this comparison. Used to name output files and directories.</td><td><code>TDP43_KD_vs_control</code></td></tr>
+                        <tr><td><code>variable</code></td><td>The column in <code>samplesheet.csv</code> that defines the grouping.</td><td><code>condition</code></td></tr>
+                        <tr><td><code>reference</code></td><td>The baseline group (denominator in the fold-change calculation).</td><td><code>control</code></td></tr>
+                        <tr><td><code>target</code></td><td>The comparison group (numerator). Positive log2FC means higher in this group.</td><td><code>TDP43_KD</code></td></tr>
+                        <tr><td><code>blocking</code></td><td>Optional. A comma-separated list of confounding variables to include in the model formula (e.g., batch effects).</td><td>(empty)</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Part 2C: Salmon files -->
+            <h3 style="margin-top:2rem; padding:0.5rem 1rem; background:#e8f4fd; border-left:4px solid #2196F3;">C. Salmon Quantification Files</h3>
+            <p>The Salmon quantification output from <code>nf-core/rnaseq</code> is already available. Each sample has its own subdirectory containing a <code>quant.sf</code> file.</p>
+
+            <div class="step" data-step="6">
+                <h3>Verify the Salmon output files</h3>
+                <pre><code># Check the Salmon results directory from nf-core/rnaseq
+ls /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon/
+
+# Confirm each sample has a quant.sf file
+ls /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon/KO_1_SRR10045016/
+
+# Quick sanity check on one quant.sf file
+head -5 /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon/KO_1_SRR10045016/quant.sf</code></pre>
+                <div class="info-box tip">
+                    <strong>What is in quant.sf?</strong>
+                    <p>Each <code>quant.sf</code> file contains five columns: <code>Name</code> (transcript ID), <code>Length</code>, <code>EffectiveLength</code>, <code>TPM</code> (transcripts per million), and <code>NumReads</code> (estimated read counts). The pipeline uses these estimated counts as input to DESeq2 via the <code>tximeta</code> R package, which correctly accounts for differences in effective transcript lengths.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================= -->
+        <!-- Part 3: Run the Pipeline          -->
+        <!-- ================================= -->
+        <section id="part3">
+            <h2>Part 3: Run nf-core/differentialabundance</h2>
+            <p>With all input files prepared, you can now launch the pipeline. For this lab, two options are provided: an interactive test run to verify the command, and a SLURM batch job for the full analysis.</p>
+
+            <div class="step" data-step="7">
+                <h3>Full pipeline run command</h3>
+                <pre><code>cd /ibex/user/$USER/workshop/nfcore_da
+
+nextflow run nf-core/differentialabundance \
+    --input samplesheet.csv \
+    --contrasts contrasts.csv \
+    --matrix /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon \
+    --input_type salmon \
+    --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
+    --outdir da_results \
+    --deseq2_vst_nsub 500 \
+    -profile kaust \
+    -resume</code></pre>
+            </div>
+
+            <div class="info-box note">
+                <strong>Key parameters explained</strong>
+                <table class="schedule-table">
+                    <tr><th>Parameter</th><th>Description</th></tr>
+                    <tr><td><code>--input</code></td><td>Path to the sample metadata CSV (<code>samplesheet.csv</code>)</td></tr>
+                    <tr><td><code>--contrasts</code></td><td>Path to the contrasts CSV (<code>contrasts.csv</code>)</td></tr>
+                    <tr><td><code>--matrix</code></td><td>Path to the directory containing Salmon output subdirectories (one per sample)</td></tr>
+                    <tr><td><code>--input_type</code></td><td>Type of quantification input: <code>salmon</code> for Salmon quant directories, or <code>featurecounts</code> for a count matrix TSV</td></tr>
+                    <tr><td><code>--gtf</code></td><td>Path to the GTF annotation file; used for transcript-to-gene ID mapping. For chr11 lab we pass the chr11 GTF explicitly instead of using the KAUST genome registry (<code>--genome GRCh38.p14</code>).</td></tr>
+                    <tr><td><code>--deseq2_vst_nsub</code></td><td>Number of genes sampled to fit the variance-stabilizing transformation (VST). Reduce for speed on small datasets.</td></tr>
+                    <tr><td><code>-profile kaust</code></td><td>Activates the KAUST institutional config: SLURM scheduler, Singularity containers, shared image library, and Ibex resource defaults</td></tr>
+                    <tr><td><code>-resume</code></td><td>Resume a previous run using cached intermediate results — avoids recomputing completed steps</td></tr>
+                </table>
+            </div>
+
+            <div class="step" data-step="8">
+                <h3>Submit as a SLURM batch job (recommended for full datasets)</h3>
+                <pre><code>cd /ibex/user/$USER/workshop/nfcore_da
+
+sbatch --job-name=nfcore_da \
+    --mem=8G \
+    --cpus-per-task=2 \
+    --time=4:00:00 \
+    --output=da_nextflow_%j.log \
+    --wrap="module purge && module load nextflow && module load singularity && \
+        export NXF_SINGULARITY_CACHEDIR=/ibex/user/$USER/singularity_cache && \
+        nextflow run nf-core/differentialabundance \
+            --input samplesheet.csv \
+            --contrasts contrasts.csv \
+            --matrix /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon \
+            --input_type salmon \
+            --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
+            --outdir da_results \
+            --deseq2_vst_nsub 500 \
+            -profile kaust \
+            -resume"</code></pre>
+                <div class="info-box tip">
+                    <strong>Monitoring the job</strong>
+                    <p>Track job progress with <code>squeue -u $USER</code>. Nextflow also writes a real-time log — tail it with:</p>
+                    <pre><code>tail -f da_nextflow_*.log</code></pre>
+                    <p>Each completed process is marked with a green checkmark in the log. A <code>.nextflow/</code> hidden directory in your working folder stores the execution cache used by <code>-resume</code>.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================= -->
+        <!-- Part 4: Output Structure          -->
+        <!-- ================================= -->
+        <section id="part4">
+            <h2>Part 4: Understand the Output Structure</h2>
+            <p>Once the pipeline completes, the <code>da_results/</code> directory contains all outputs organized by tool and contrast.</p>
+
+            <div class="step" data-step="9">
+                <h3>Explore the output directory</h3>
+                <pre><code">ls da_results/
+
+# Explore the DESeq2 output for this contrast
+ls da_results/deseq2/TDP43_KD_vs_control/
+
+# Inspect the full results table (first 5 genes)
+head -5 da_results/deseq2/TDP43_KD_vs_control/all_differential_expression.tsv
+
+# Count how many significantly differentially expressed genes were found
+wc -l da_results/deseq2/TDP43_KD_vs_control/significant_differential_expression.tsv</code></pre>
+            </div>
+
+            <div class="info-box note">
+                <strong>Output directory structure</strong>
+                <pre><code>da_results/
+├── deseq2/
+│   └── TDP43_KD_vs_control/
+│       ├── all_differential_expression.tsv      # All tested genes with full DESeq2 statistics
+│       ├── significant_differential_expression.tsv  # Genes passing significance thresholds
+│       ├── deseq2.plots.pdf                     # QC and DE diagnostic plots (dispersion, MA, PCA)
+│       └── rdata/                               # Saved R objects for downstream use
+├── tables/
+│   └── TDP43_KD_vs_control/
+│       └── *.tsv                                # Filtered result tables at various thresholds
+├── multiqc/
+│   └── multiqc_report.html                      # Integrated QC report including DESeq2 sections
+└── shinydiffexp/
+    └── app.R                                    # Self-contained interactive Shiny application</code></pre>
+            </div>
+
+            <div class="step" data-step="10">
+                <h3>Understand the DESeq2 results table columns</h3>
+                <pre><code"># View column headers of the full results table
+head -1 da_results/deseq2/TDP43_KD_vs_control/all_differential_expression.tsv | tr '\t' '\n' | cat -n</code></pre>
+                <div class="info-box note">
+                    <strong>DESeq2 output columns</strong>
+                    <table class="schedule-table">
+                        <tr><th>Column</th><th>Description</th></tr>
+                        <tr><td><code>gene_id</code></td><td>Ensembl gene identifier (e.g., ENSG00000000003)</td></tr>
+                        <tr><td><code>gene_name</code></td><td>HGNC gene symbol (e.g., TARDBP)</td></tr>
+                        <tr><td><code>baseMean</code></td><td>Mean of normalized counts across all samples. Low values indicate low-abundance genes.</td></tr>
+                        <tr><td><code>log2FoldChange</code></td><td>Log2 ratio of TDP43_KD over control. Positive = higher in knockdown.</td></tr>
+                        <tr><td><code>lfcSE</code></td><td>Standard error of the log2 fold-change estimate.</td></tr>
+                        <tr><td><code>stat</code></td><td>Wald test statistic.</td></tr>
+                        <tr><td><code>pvalue</code></td><td>Nominal p-value from the Wald test.</td></tr>
+                        <tr><td><code>padj</code></td><td>Benjamini-Hochberg adjusted p-value (FDR). Use this for significance filtering.</td></tr>
+                    </table>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================= -->
+        <!-- Part 5: Shiny Report              -->
+        <!-- ================================= -->
+        <section id="part5">
+            <h2>Part 5: Interpret the Interactive Shiny Report</h2>
+            <p>The <code>shinydiffexp</code> Shiny application provides an interactive interface for exploring differential expression results. It is a self-contained R app that can be run locally on your laptop after downloading it from Ibex.</p>
+
+            <div class="info-box tip">
+                <strong>What the Shiny app enables that static plots do not</strong>
+                <p>Static PDF plots (like those in <code>deseq2.plots.pdf</code>) give you a fixed snapshot of your data. The Shiny app adds:</p>
+                <ul>
+                    <li><strong>Interactive filtering</strong> — adjust log2FC and adjusted p-value thresholds in real time and see DEG counts update instantly</li>
+                    <li><strong>Gene-level drill-down</strong> — click any point on the volcano plot to see normalized count plots for that gene across all samples</li>
+                    <li><strong>Custom heatmaps</strong> — select subsets of genes and samples to visualize</li>
+                    <li><strong>Searchable DEG tables</strong> — sort and search the full results table without exporting to a spreadsheet</li>
+                </ul>
+            </div>
+
+            <div class="step" data-step="11">
+                <h3>Download the Shiny app to your laptop</h3>
+                <pre><code"># Run this on your LOCAL laptop terminal (not on Ibex)
+scp -r username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_da/da_results/shinydiffexp ./
+
+# Then launch it in R on your laptop:
+# Open R or RStudio and run:
+# install.packages("shiny")   # only needed once
+# shiny::runApp("shinydiffexp/")</code></pre>
+                <div class="info-box note">
+                    <strong>Sharing the Shiny report with collaborators</strong>
+                    <p>The <code>shinydiffexp/</code> directory is a self-contained Shiny app — it includes the results data embedded in the <code>app.R</code> file. You can share it by:</p>
+                    <ul>
+                        <li><strong>Email / file transfer</strong> — zip the directory and send it; the recipient opens it in RStudio and clicks "Run App"</li>
+                        <li><strong>shinyapps.io</strong> — deploy for free with <code>rsconnect::deployApp("shinydiffexp/")</code> for a persistent URL</li>
+                        <li><strong>Posit Connect / internal server</strong> — deploy on your institution's Shiny Server for authenticated access</li>
+                    </ul>
+                    <p>No bioinformatics installation is required on the collaborator's side — only R and the shiny package.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="12">
+                <h3>Navigate the key sections of the Shiny report</h3>
+                <p>The Shiny app is organized into panels accessible from the top navigation bar:</p>
+                <ul>
+                    <li>
+                        <strong>Sample explorer</strong> — QC visualizations for all samples:
+                        <ul>
+                            <li>PCA plot: look for clear separation between control and TDP43_KD samples along PC1</li>
+                            <li>Hierarchical clustering dendrogram: samples should cluster by condition</li>
+                            <li>Sample-to-sample distance heatmap: identify outlier samples</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Differential analysis</strong> — results for each contrast:
+                        <ul>
+                            <li>Volcano plot: x-axis = log2FC, y-axis = -log10(padj). Genes in the upper corners are significant and strongly changed.</li>
+                            <li>MA plot: x-axis = mean expression (baseMean), y-axis = log2FC. Useful for detecting expression-level-dependent bias.</li>
+                            <li>DEG table: sortable and searchable. Filter by padj and log2FC using the sliders.</li>
+                        </ul>
+                    </li>
+                    <li>
+                        <strong>Gene exploration</strong> — per-gene count plots:
+                        <ul>
+                            <li>Search for any gene by name (e.g., TARDBP) to see normalized counts per sample</li>
+                            <li>Heatmap view: visualize expression patterns across selected gene sets</li>
+                        </ul>
+                    </li>
+                </ul>
+            </div>
+
+            <div class="step" data-step="13">
+                <h3>Cross-check with Lab 7 results</h3>
+                <pre><code"># Compare the number of DEGs between the two approaches
+# nf-core/differentialabundance result:
+wc -l da_results/deseq2/TDP43_KD_vs_control/significant_differential_expression.tsv
+
+# Your Lab 7 DESeq2 result (adjust path as needed):
+# wc -l ~/workshop/deseq2/TDP43_KD_vs_control_significant.tsv
+
+# Check if TARDBP itself appears in the significant genes list
+grep "TARDBP" da_results/deseq2/TDP43_KD_vs_control/all_differential_expression.tsv</code></pre>
+                <div class="info-box note">
+                    <strong>Why results might differ slightly from Lab 7</strong>
+                    <p>Both analyses use DESeq2, so results should be highly consistent. Minor differences may arise from: (1) the pipeline using <code>tximeta</code> to import Salmon counts with length correction, while Lab 7 may have used a plain count matrix; (2) different default filtering thresholds for low-count genes; or (3) different DESeq2 parameter defaults such as <code>independentFiltering</code>. These differences are expected and do not indicate an error in either approach.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================= -->
+        <!-- Part 6: MultiQC Report            -->
+        <!-- ================================= -->
+        <section id="part6">
+            <h2>Part 6: Interpret the MultiQC Report</h2>
+            <p>The pipeline generates a MultiQC report that aggregates QC metrics and DESeq2 summary statistics into a single HTML file.</p>
+
+            <div class="step" data-step="14">
+                <h3>Open the MultiQC report</h3>
+                <pre><code"># Download the MultiQC report to your laptop
+scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_da/da_results/multiqc/multiqc_report.html ./
+
+# Open in your browser
+open multiqc_report.html    # macOS
+# xdg-open multiqc_report.html   # Linux</code></pre>
+            </div>
+
+            <div class="step" data-step="15">
+                <h3>Key sections to review in the MultiQC report</h3>
+                <p>Navigate through the report sections and look for the following:</p>
+                <ul>
+                    <li>
+                        <strong>DESeq2 — Dispersion estimates</strong>: The dispersion plot shows how per-gene variance estimates were shrunk toward the fitted mean-dispersion trend. Well-behaved data shows a smooth trend line with most gene-level estimates clustering closely around it.
+                    </li>
+                    <li>
+                        <strong>DESeq2 — PCA</strong>: The PCA plot in MultiQC matches the one in the Shiny app. Confirm PC1 separates control from TDP43_KD samples — this is the primary axis of variation in a well-designed knockdown experiment.
+                    </li>
+                    <li>
+                        <strong>DESeq2 — MA plot</strong>: In the MA plot, most genes should lie along the horizontal axis (no fold change). Significantly DE genes are highlighted in color. A symmetric distribution of up- and down-regulated genes is typical; a strong asymmetry may indicate a normalization issue or a large-scale transcriptional response to TDP-43 loss.
+                    </li>
+                    <li>
+                        <strong>DESeq2 — Summary statistics</strong>: A table summarizing total genes tested, number significant at the default thresholds, and the up/down breakdown for each contrast.
+                    </li>
+                </ul>
+            </div>
+        </section>
+
+        <!-- ================================= -->
+        <!-- Exercises                         -->
+        <!-- ================================= -->
+        <section id="exercises">
+            <h2>Exercises</h2>
+            <p>Use the output files and the Shiny report to answer the following questions.</p>
+
+            <div class="card">
+                <h3>Exercise 1: Count Significant DEGs</h3>
+                <p>How many genes are in the <code>significant_differential_expression.tsv</code> file (excluding the header)?</p>
+                <p>How does this number compare to the number of significant genes you identified manually in Lab 7? If they differ, what might explain the discrepancy?</p>
+                <p><em>Hint: Use <code>wc -l</code> on both files and subtract 1 for the header line.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 2: Default Significance Thresholds</h3>
+                <p>What adjusted p-value and log2 fold-change thresholds does <code>nf-core/differentialabundance</code> use by default to define a significant gene? How would you change these thresholds when running the pipeline?</p>
+                <p><em>Hint: Check the nf-core/differentialabundance documentation at <a href="https://nf-co.re/differentialabundance/parameters" target="_blank">nf-co.re/differentialabundance/parameters</a> and look for parameters named <code>deseq2_alpha</code> and <code>deseq2_lfc_threshold</code>. You can also explore results at different thresholds interactively in the Shiny app without re-running the pipeline.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 3: TARDBP Expression in the Shiny App</h3>
+                <p>Open the Shiny app and navigate to the Gene exploration panel. Search for <strong>TARDBP</strong> (the gene encoding TDP-43 protein). Does the knockdown look efficient? What is the approximate log2 fold-change and adjusted p-value for TARDBP in the <code>all_differential_expression.tsv</code> file?</p>
+                <pre><code">grep "TARDBP" da_results/deseq2/TDP43_KD_vs_control/all_differential_expression.tsv</code></pre>
+                <p>Based on the count plot in the Shiny app, is there variability between the three knockdown replicates?</p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 4: Adding a Third Contrast</h3>
+                <p>Imagine the GSE136366 study had a third condition: <code>rescue</code> (cells where TDP-43 was knocked down and then re-expressed). What additional rows would you add to <code>contrasts.csv</code> to test:</p>
+                <ol>
+                    <li>Rescue vs. control</li>
+                    <li>TDP43_KD vs. rescue</li>
+                </ol>
+                <p>Write the two rows in valid CSV format following the same column structure used in Part 2B.</p>
+            </div>
+        </section>
+
+        <!-- ================================= -->
+        <!-- Summary                           -->
+        <!-- ================================= -->
+        <section id="summary">
+            <h2>Summary</h2>
+            <p>In this lab, you have:</p>
+            <ul>
+                <li>Prepared the three required inputs for <code>nf-core/differentialabundance</code>: a sample metadata CSV, a contrasts CSV, and Salmon quantification directories</li>
+                <li>Understood each column in the samplesheet and contrasts file and how they map to the DESeq2 model</li>
+                <li>Run the pipeline on Ibex using <code>-profile kaust</code> (SLURM + Singularity + shared genomes) and submitted it as a SLURM batch job</li>
+                <li>Navigated the output directory structure and identified the key result files</li>
+                <li>Interpreted DESeq2 result table columns including <code>baseMean</code>, <code>log2FoldChange</code>, <code>pvalue</code>, and <code>padj</code></li>
+                <li>Explored results interactively using the Shiny report and compared them to Lab 7 manual DESeq2 output</li>
+                <li>Reviewed the MultiQC report for dispersion estimates, PCA, and MA plot interpretation</li>
+            </ul>
+            <p>
+                <strong>Previous:</strong> <a href="lab-functional-enrichment.html">Lab 8: Functional Enrichment Analysis</a>
+                &nbsp;&nbsp;|&nbsp;&nbsp;
+                <strong>Next:</strong> <a href="lab-capstone.html">Lab 10: Real-world Analysis Capstone</a>
+            </p>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Data Analysis Course &mdash; KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        // Add copy buttons to all code blocks
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('pre');
+            codeBlocks.forEach(function(pre) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(pre);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', function() {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.textContent : pre.textContent;
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = 'Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>
