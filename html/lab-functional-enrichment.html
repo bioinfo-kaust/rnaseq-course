@@ -1,0 +1,578 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 8: Functional Enrichment Analysis — RNA-seq Data Analysis Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo">The Bioinformatics Platform - KAUST</a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <h1>Lab 8: Functional Enrichment Analysis</h1>
+
+        <div class="lab-nav">
+            <a href="#part1"><span class="part-num">Part 1</span><span class="part-label">Setup</span></a>
+            <a href="#part2"><span class="part-num">Part 2</span><span class="part-label">Gene Lists</span></a>
+            <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">GO Enrichment</span></a>
+            <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">KEGG Pathways</span></a>
+            <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">GSEA</span></a>
+        </div>
+
+        <p>In this lab, you will take the differentially expressed genes identified in Lab 7 (TDP-43/TARDBP knockdown vs. control, GSE136366) and ask: <em>what biological processes and pathways are dysregulated?</em> You will use two complementary approaches — Over-Representation Analysis (ORA) and Gene Set Enrichment Analysis (GSEA) — implemented in R using <code>clusterProfiler</code> and <code>fgsea</code>.</p>
+
+        <div class="info-box tip">
+            <strong>Working with chr11-only results</strong>
+            <p>The DESeq2 results from Lab 7 cover only <strong>chromosome 11 genes</strong>. Gene set databases (GO, KEGG, MSigDB Hallmarks) span the entire genome, so enrichment analysis may return fewer significant terms than a full-genome run. This is expected — the methodology and interpretation are identical. For course purposes, the chr11 results are sufficient to demonstrate the workflow.</p>
+        </div>
+
+        <div class="info-box note">
+            <strong>Learning Objectives</strong>
+            <ul>
+                <li>Understand the conceptual difference between ORA and GSEA, and when to use each</li>
+                <li>Perform GO enrichment (ORA) for Biological Process, Molecular Function, and Cellular Component using <code>clusterProfiler</code></li>
+                <li>Perform KEGG pathway enrichment analysis</li>
+                <li>Run GSEA using a continuously ranked gene list with <code>fgsea</code> and Hallmark gene sets from MSigDB</li>
+                <li>Visualize enrichment results using dotplots, barplots, and enrichment plots</li>
+            </ul>
+        </div>
+
+        <!-- =============================== -->
+        <!-- Part 1: Setup                   -->
+        <!-- =============================== -->
+        <section id="part1">
+            <h2>Part 1: Setup on Ibex</h2>
+            <p>All analysis in this lab is performed in R on the Ibex HPC cluster. Start an interactive session and load R.</p>
+
+            <div class="step" data-step="1">
+                <h3>Connect to Ibex and start an interactive session</h3>
+                <pre><code># Connect to Ibex
+ssh username@ilogin.ibex.kaust.edu.sa
+
+# Navigate to your workshop directory on scratch
+/ibex/user/$USER/workshop
+
+# Start an interactive session with enough memory for R
+srun --pty --time=4:00:00 --mem=32G --cpus-per-task=4 bash</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Start R session</h3>
+                <pre><code># Activate  rnaseq conda env, see instructions on the <a href="setup.html#conda">setup</a> page
+conda activate rnaseq
+                    
+# Start an interactive R session
+R</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Load required R libraries</h3>
+                <p>Inside your R session, load the libraries needed for this lab. If any are missing, install them first.</p>
+                <pre><code># Install msigdbr if not already available
+# install.packages("msigdbr")
+
+# Load all required libraries
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(ggplot2)
+library(fgsea)
+library(dplyr)
+library(msigdbr)</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Installing Bioconductor Packages on Ibex</strong>
+                    <p>Most packages used here (<code>clusterProfiler</code>, <code>org.Hs.eg.db</code>, <code>fgsea</code>) are Bioconductor packages. Install them with:</p>
+                    <pre><code>if (!requireNamespace("BiocManager", quietly=TRUE)) install.packages("BiocManager")
+BiocManager::install(c("clusterProfiler", "org.Hs.eg.db", "fgsea"))</code></pre>
+                </div>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Navigate to your working directory</h3>
+                <pre><code># Set your working directory (adjust path as needed)
+setwd("/ibex/user/$USER/workshop")
+
+# Confirm location
+getwd()
+
+# Check that the DESeq2 results file is present
+file.exists("results/DESeq2_TDP43KD_vs_control.csv")</code></pre>
+            </div>
+        </section>
+
+        <!-- =============================== -->
+        <!-- Part 2: Prepare Gene Lists      -->
+        <!-- =============================== -->
+        <section id="part2">
+            <h2>Part 2: Prepare Gene Lists</h2>
+            <p>Enrichment methods require gene identifiers in specific formats. KEGG and many gene set databases use Entrez IDs, while your DESeq2 results use Ensembl IDs. This section loads the results and performs ID conversion.</p>
+
+            <div class="step" data-step="1">
+                <h3>Load DESeq2 results</h3>
+                <pre><code># Load the differential expression results from Lab 7
+res_df <- read.csv("results/DESeq2_TDP43KD_vs_control.csv")
+
+# Inspect the data
+head(res_df)
+dim(res_df)
+colnames(res_df)</code></pre>
+                <div class="info-box note">
+                    <strong>Expected columns in DESeq2 results</strong>
+                    <p>The file should contain at minimum: <code>gene_id</code> (Ensembl IDs), <code>log2FoldChange</code>, <code>pvalue</code>, <code>padj</code>, and <code>stat</code> (the Wald test statistic). If your column names differ, adjust the code below accordingly.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Convert Ensembl IDs to Entrez IDs</h3>
+                <p>KEGG enrichment requires Entrez gene IDs. Use the <code>org.Hs.eg.db</code> annotation package to map Ensembl IDs to Entrez IDs.</p>
+                <pre><code># Map Ensembl gene IDs to Entrez IDs
+res_df$entrez_id <- mapIds(org.Hs.eg.db,
+    keys      = res_df$gene_id,
+    column    = "ENTREZID",
+    keytype   = "ENSEMBL",
+    multiVals = "first")
+
+# Remove genes that could not be mapped
+res_df <- res_df %>% filter(!is.na(entrez_id))
+
+# Check how many genes remain
+nrow(res_df)</code></pre>
+                <div class="info-box note">
+                    <strong>Why do some genes fail to map?</strong>
+                    <p>Not all Ensembl IDs have a corresponding Entrez ID. This typically affects pseudogenes, non-coding RNA genes, and genes on alternative contigs. Losing a small fraction (~5-10%) is expected and acceptable.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Define significant gene lists for ORA</h3>
+                <pre><code># All significant DEGs (padj < 0.05, |LFC| > 1) — used for ORA
+sig_genes <- res_df %>%
+    filter(padj < 0.05, abs(log2FoldChange) > 1) %>%
+    pull(entrez_id)
+
+# Upregulated genes only
+up_genes <- res_df %>%
+    filter(padj < 0.05, log2FoldChange > 1) %>%
+    pull(entrez_id)
+
+# Downregulated genes only
+down_genes <- res_df %>%
+    filter(padj < 0.05, log2FoldChange < -1) %>%
+    pull(entrez_id)
+
+# Universe = all genes that were tested (not just significant ones)
+universe_genes <- res_df$entrez_id
+
+cat("Significant DEGs:", length(sig_genes), "\n")
+cat("Upregulated:", length(up_genes), "\n")
+cat("Downregulated:", length(down_genes), "\n")
+cat("Universe (all tested):", length(universe_genes), "\n")</code></pre>
+            </div>
+
+            <div class="info-box warning">
+                <strong>The gene universe matters — always define it explicitly</strong>
+                <p>In ORA, statistical significance is calculated as the probability of observing this many hits in a gene set <em>by chance</em>, given how many genes you tested overall. If you do not specify the universe (background), the tool defaults to all genes in the database — this inflates the denominator and produces misleading p-values. Always set the universe to the genes that were actually present and testable in your experiment (i.e., all genes that passed count filters in DESeq2).</p>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Part 3: GO Enrichment (ORA)                  -->
+        <!-- ============================================= -->
+        <section id="part3">
+            <h2>Part 3: GO Enrichment (Over-Representation Analysis)</h2>
+
+            <div class="info-box note">
+                <strong>What is Over-Representation Analysis (ORA)?</strong>
+                <p>ORA asks: given a list of significant genes, are certain GO terms (or pathways) represented more than expected by chance? It uses a hypergeometric test (similar to Fisher's exact test) that counts how many of your significant genes belong to each GO term, compared to how many would be expected given the term's size in the background. ORA is intuitive but has a key limitation: it discards all quantitative information (fold-changes, p-values) by applying a hard significance cutoff to define the gene list.</p>
+                <p><strong>When to use ORA:</strong> When you have a clearly defined list of "hits" and want a fast, interpretable summary of their biology.</p>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Run GO Biological Process enrichment</h3>
+                <pre><code># GO Biological Process enrichment
+ego_BP <- enrichGO(
+    gene          = sig_genes,
+    universe      = universe_genes,
+    OrgDb         = org.Hs.eg.db,
+    ont           = "BP",        # Biological Process
+    pAdjustMethod = "BH",        # Benjamini-Hochberg correction
+    pvalueCutoff  = 0.05,
+    qvalueCutoff  = 0.2,
+    readable      = TRUE         # convert Entrez IDs back to gene symbols
+)
+
+# Inspect top results
+head(ego_BP, 10)</code></pre>
+                <div class="info-box note">
+                    <strong>Key output columns</strong>
+                    <table class="schedule-table">
+                        <tr><th>Column</th><th>Description</th></tr>
+                        <tr><td><code>ID</code></td><td>GO term accession (e.g., GO:0006397)</td></tr>
+                        <tr><td><code>Description</code></td><td>GO term name</td></tr>
+                        <tr><td><code>GeneRatio</code></td><td>Fraction of your significant genes in this term (k/n)</td></tr>
+                        <tr><td><code>BgRatio</code></td><td>Fraction of universe genes in this term (M/N)</td></tr>
+                        <tr><td><code>pvalue</code></td><td>Raw hypergeometric p-value</td></tr>
+                        <tr><td><code>p.adjust</code></td><td>BH-corrected p-value</td></tr>
+                        <tr><td><code>qvalue</code></td><td>q-value (FDR)</td></tr>
+                        <tr><td><code>geneID</code></td><td>Matching gene symbols (when readable=TRUE)</td></tr>
+                        <tr><td><code>Count</code></td><td>Number of genes from your list in this term</td></tr>
+                    </table>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Visualize GO BP results — dotplot</h3>
+                <pre><code># Dotplot: each dot is a GO term; size = gene count, color = adjusted p-value
+dotplot(ego_BP, showCategory=20, title="GO Biological Process: TDP-43 KD vs. Control")
+ggsave("results/GO_BP_dotplot.pdf", width=10, height=8)</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Visualize GO BP results — barplot</h3>
+                <pre><code># Barplot of top enriched GO BP terms
+barplot(ego_BP, showCategory=15, title="GO BP Enrichment: TDP-43 KD vs. Control")</code></pre>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Run GO Molecular Function and Cellular Component</h3>
+                <pre><code># GO Molecular Function
+ego_MF <- enrichGO(
+    gene          = sig_genes,
+    universe      = universe_genes,
+    OrgDb         = org.Hs.eg.db,
+    ont           = "MF",
+    pAdjustMethod = "BH",
+    readable      = TRUE
+)
+
+# GO Cellular Component
+ego_CC <- enrichGO(
+    gene          = sig_genes,
+    universe      = universe_genes,
+    OrgDb         = org.Hs.eg.db,
+    ont           = "CC",
+    pAdjustMethod = "BH",
+    readable      = TRUE
+)
+
+# Visualize both
+dotplot(ego_MF, title="GO Molecular Function: TDP-43 KD")
+dotplot(ego_CC, title="GO Cellular Component: TDP-43 KD")</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Interpreting the three GO ontologies</strong>
+                    <ul>
+                        <li><strong>Biological Process (BP)</strong> — What process is the gene involved in? (e.g., mRNA splicing, apoptosis). Most informative for RNA-seq.</li>
+                        <li><strong>Molecular Function (MF)</strong> — What molecular activity does the gene have? (e.g., RNA binding, kinase activity). Useful for identifying protein function classes.</li>
+                        <li><strong>Cellular Component (CC)</strong> — Where in the cell does the gene product act? (e.g., nucleus, spliceosome). Useful for subcellular context.</li>
+                    </ul>
+                    <p>For TDP-43 (an RNA-binding protein), expect BP enrichment in RNA splicing and processing, MF enrichment in RNA binding, and CC enrichment in the nucleus and ribonucleoprotein complexes.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Part 4: KEGG Pathway Enrichment              -->
+        <!-- ============================================= -->
+        <section id="part4">
+            <h2>Part 4: KEGG Pathway Enrichment</h2>
+
+            <div class="info-box note">
+                <strong>GO terms vs. KEGG pathways — what is the difference?</strong>
+                <p><strong>Gene Ontology (GO)</strong> terms are hierarchical, ontology-based annotations that describe molecular functions, biological processes, and cellular components. They are broad and cover virtually every gene in the genome.</p>
+                <p><strong>KEGG (Kyoto Encyclopedia of Genes and Genomes)</strong> pathways are manually curated metabolic and signaling pathway maps. They are more focused on molecular interaction networks and metabolic reactions, and are particularly useful when you want to understand how dysregulated genes fit into known biochemical pathways (e.g., the TCA cycle, MAPK signaling). KEGG pathways are fewer in number than GO terms but tend to be more interpretable as coherent biological units.</p>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Run KEGG pathway enrichment</h3>
+                <pre><code># KEGG pathway enrichment (requires Entrez IDs and internet access)
+ekegg <- enrichKEGG(
+    gene          = sig_genes,
+    universe      = universe_genes,
+    organism      = "hsa",       # hsa = Homo sapiens
+    pAdjustMethod = "BH",
+    pvalueCutoff  = 0.05
+)
+
+# Inspect top results
+head(ekegg, 10)</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: KEGG organism codes</strong>
+                    <p>KEGG uses three-letter organism codes. Common ones: <code>hsa</code> (human), <code>mmu</code> (mouse), <code>rno</code> (rat), <code>dre</code> (zebrafish). Find codes at <a href="https://www.kegg.jp/kegg/catalog/org_list.html" target="_blank">kegg.jp/kegg/catalog/org_list.html</a>.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Visualize KEGG enrichment</h3>
+                <pre><code># Dotplot of top enriched KEGG pathways
+dotplot(ekegg, showCategory=15, title="KEGG Pathway Enrichment: TDP-43 KD vs. Control")
+ggsave("results/KEGG_dotplot.pdf", width=10, height=7)</code></pre>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Convert KEGG IDs to readable names (optional)</h3>
+                <pre><code># The ekegg result contains KEGG pathway IDs (e.g., hsa03040)
+# Use setReadable to convert them if supported, or inspect the Description column
+as.data.frame(ekegg)[, c("ID", "Description", "GeneRatio", "p.adjust", "Count")]</code></pre>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Part 5: GSEA with fgsea                      -->
+        <!-- ============================================= -->
+        <section id="part5">
+            <h2>Part 5: Gene Set Enrichment Analysis (GSEA)</h2>
+
+            <div class="info-box note">
+                <strong>What is GSEA and how does it differ from ORA?</strong>
+                <p><strong>GSEA (Gene Set Enrichment Analysis)</strong> does not require a hard significance cutoff. Instead, it uses <em>all genes</em> ranked by a continuous score (typically the Wald statistic or sign(LFC) * -log10(p-value)). It then tests whether the genes in a predefined gene set are non-randomly distributed toward the top or bottom of the ranked list — indicating coordinated upregulation or downregulation.</p>
+                <p><strong>Key advantages over ORA:</strong></p>
+                <ul>
+                    <li>Uses all genes, not just a binary significant/not-significant split — more statistical power</li>
+                    <li>Can detect subtle but coordinated shifts in gene sets that no individual gene reaches significance</li>
+                    <li>The direction of enrichment (positive or negative NES) tells you whether the gene set is overall up- or down-regulated</li>
+                </ul>
+                <p><strong>When to use GSEA:</strong> When you want to detect coordinated pathway-level changes, especially when individual gene-level signals are modest (e.g., in complex diseases or subtle perturbations).</p>
+            </div>
+
+            <div class="step" data-step="1">
+                <h3>Build a ranked gene list</h3>
+                <p>Rank all tested genes by their DESeq2 Wald statistic. Positive values indicate upregulation in TDP-43 KD; negative values indicate downregulation.</p>
+                <pre><code># Build ranked list: all genes sorted by Wald statistic (descending)
+ranked_list <- res_df %>%
+    filter(!is.na(stat), !is.na(entrez_id)) %>%
+    arrange(desc(stat)) %>%
+    select(entrez_id, stat)
+
+# Create a named numeric vector (required by fgsea)
+gene_ranks <- ranked_list$stat
+names(gene_ranks) <- ranked_list$entrez_id
+
+# Remove duplicate Entrez IDs (keep first occurrence, which has highest |stat|)
+gene_ranks <- gene_ranks[!duplicated(names(gene_ranks))]
+
+cat("Number of genes in ranked list:", length(gene_ranks), "\n")
+# Expected: ~15,000 to 20,000 genes
+
+# Inspect the top and bottom of the ranked list
+head(gene_ranks, 5)    # most upregulated
+tail(gene_ranks, 5)    # most downregulated</code></pre>
+            </div>
+
+            <div class="step" data-step="2">
+                <h3>Download Hallmark gene sets from MSigDB</h3>
+                <pre><code># MSigDB Hallmark collection: 50 curated gene sets representing well-defined biological states
+msig_hallmark <- msigdbr(species="Homo sapiens", category="H")
+
+# Convert to a named list of Entrez ID vectors (format required by fgsea)
+hallmark_sets <- split(msig_hallmark$entrez_gene, msig_hallmark$gs_name)
+
+# How many gene sets?
+length(hallmark_sets)
+
+# Preview one gene set
+head(hallmark_sets[["HALLMARK_MYC_TARGETS_V1"]], 10)</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: MSigDB collections</strong>
+                    <p>MSigDB provides several gene set collections. For RNA-seq, the most commonly used are:</p>
+                    <ul>
+                        <li><strong>H (Hallmark)</strong> — 50 well-defined biological states; low redundancy, high interpretability. Best starting point.</li>
+                        <li><strong>C2 (Curated)</strong> — Reactome, KEGG, and other curated pathway gene sets.</li>
+                        <li><strong>C5 (Ontology)</strong> — GO gene sets. Large but redundant.</li>
+                        <li><strong>C6 (Oncogenic)</strong> — Cancer-relevant signatures.</li>
+                    </ul>
+                    <p>Use <code>msigdbr_collections()</code> to see all available collections.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="3">
+                <h3>Run fgsea</h3>
+                <pre><code># Run fgsea (fast GSEA implementation)
+set.seed(42)   # for reproducibility
+fgsea_results <- fgsea(
+    pathways    = hallmark_sets,
+    stats       = gene_ranks,
+    minSize     = 15,          # minimum genes in a set to test it
+    maxSize     = 500,         # maximum genes in a set
+    nPermSimple = 1000         # number of permutations
+)
+
+# Sort by NES and filter to significant results
+fgsea_results <- fgsea_results %>%
+    arrange(desc(NES)) %>%
+    filter(padj < 0.05)
+
+# Show top results
+head(fgsea_results[, c("pathway", "NES", "padj", "size")], 15)</code></pre>
+            </div>
+
+            <div class="info-box note">
+                <strong>Understanding the NES (Normalized Enrichment Score)</strong>
+                <p>The <strong>Enrichment Score (ES)</strong> measures the degree to which genes in a gene set are overrepresented at the top or bottom of the ranked gene list. The <strong>Normalized Enrichment Score (NES)</strong> corrects the ES for gene set size, making scores comparable across gene sets of different sizes.</p>
+                <ul>
+                    <li><strong>Positive NES:</strong> Gene set genes are concentrated at the top of the ranked list — the pathway is overall <em>upregulated</em> in TDP-43 KD relative to control.</li>
+                    <li><strong>Negative NES:</strong> Gene set genes are concentrated at the bottom — the pathway is overall <em>downregulated</em>.</li>
+                    <li><strong>NES near 0:</strong> No enrichment signal; genes are randomly distributed across the list.</li>
+                </ul>
+                <p>Use <code>padj</code> (BH-corrected p-value across all tested gene sets) to determine significance. The NES magnitude tells you about the strength and direction of enrichment.</p>
+            </div>
+
+            <div class="step" data-step="4">
+                <h3>Visualize GSEA results — barplot of all significant pathways</h3>
+                <pre><code># Prepare data for plotting
+fgsea_plot <- fgsea_results %>%
+    filter(padj < 0.05) %>%
+    arrange(NES)
+
+# Barplot: pathways ordered by NES; color by direction
+ggplot(fgsea_plot, aes(reorder(pathway, NES), NES, fill=NES > 0)) +
+    geom_col() +
+    coord_flip() +
+    scale_fill_manual(
+        values = c("TRUE"="#D62728", "FALSE"="#1F77B4"),
+        guide  = FALSE
+    ) +
+    labs(
+        x     = NULL,
+        y     = "Normalized Enrichment Score",
+        title = "GSEA Hallmark Gene Sets: TDP-43 KD vs. Control"
+    ) +
+    theme_bw() +
+    theme(axis.text.y=element_text(size=9))
+
+ggsave("results/GSEA_hallmark_barplot.pdf", width=12, height=8)</code></pre>
+            </div>
+
+            <div class="step" data-step="5">
+                <h3>Plot a single pathway enrichment curve</h3>
+                <p>The enrichment plot shows the running enrichment score across the ranked gene list, and the distribution of gene set members (black tick marks at the bottom).</p>
+                <pre><code># Identify the most enriched pathway (highest NES)
+top_pathway <- fgsea_results$pathway[which.max(fgsea_results$NES)]
+cat("Top enriched pathway:", top_pathway, "\n")
+
+# Plot the enrichment curve for that pathway
+plotEnrichment(hallmark_sets[[top_pathway]], gene_ranks) +
+    labs(title=top_pathway,
+         subtitle=paste0("NES = ", round(fgsea_results$NES[fgsea_results$pathway == top_pathway], 3),
+                         "  padj = ", signif(fgsea_results$padj[fgsea_results$pathway == top_pathway], 3)))</code></pre>
+                <div class="info-box tip">
+                    <strong>Tip: Reading the enrichment plot</strong>
+                    <p>The green running-sum line rises steeply when it encounters members of the gene set. The peak of this curve is the enrichment score (ES). The black tick marks along the x-axis show where in the ranked gene list each gene set member falls. A peak on the left means genes cluster toward the top (upregulated); a peak on the right means they cluster toward the bottom (downregulated).</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="6">
+                <h3>Export GSEA results table</h3>
+                <pre><code># Export significant results (convert list column to string for CSV)
+fgsea_export <- fgsea_results %>%
+    mutate(leadingEdge = sapply(leadingEdge, paste, collapse=",")) %>%
+    as.data.frame()
+
+write.csv(fgsea_export, "results/GSEA_hallmark_results.csv", row.names=FALSE)
+cat("Results written to results/GSEA_hallmark_results.csv\n")</code></pre>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Exercises                                     -->
+        <!-- ============================================= -->
+        <section id="exercises">
+            <h2>Exercises</h2>
+            <p>Work through these exercises individually or in pairs. Use the commands and outputs from the sections above to answer each question.</p>
+
+            <div class="card">
+                <h3>Exercise 1: GO Biological Process results</h3>
+                <p>What are the top 5 enriched GO Biological Process terms for the TDP-43 KD signature? Are they related to RNA processing or splicing? Given that TDP-43 is an RNA-binding protein involved in splicing regulation, do your results match the expected biology?</p>
+                <p><em>Hint: Use <code>head(as.data.frame(ego_BP), 5)[, c("Description", "GeneRatio", "p.adjust", "Count")]</code> to display the top terms clearly.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 2: Directional GO enrichment</h3>
+                <p>Run GO Biological Process enrichment separately for <code>up_genes</code> and <code>down_genes</code> (you defined these in Part 2). What GO terms are unique to each direction? What does this tell you about the biological consequences of TDP-43 loss?</p>
+                <p><em>Hint: Run <code>enrichGO()</code> twice, replacing <code>gene = sig_genes</code> with <code>gene = up_genes</code> and <code>gene = down_genes</code> respectively. Keep <code>universe = universe_genes</code> in both calls. Compare the top 10 terms from each.</em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 3: Interpret GSEA Hallmark results</h3>
+                <p>Which Hallmark gene sets are most significantly enriched (highest |NES|, lowest padj) in the GSEA results? For the top upregulated and top downregulated gene sets, what does the NES direction tell you about the biological state of TDP-43 KD cells? Are any of the enriched sets consistent with known TDP-43 biology (RNA processing, stress response, neurodegeneration)?</p>
+                <p><em>Hint: Print the full significant results table: <code>print(fgsea_results[, c("pathway", "NES", "padj", "size")], n=Inf)</code></em></p>
+            </div>
+
+            <div class="card">
+                <h3>Exercise 4: p-value vs. NES in fgsea</h3>
+                <p>In the <code>fgsea_results</code> table, you see both a <code>pval</code> column and an <code>NES</code> column. What is the conceptual difference between them? If two pathways have the same <code>padj</code> but different <code>NES</code> values, which would you prioritize for follow-up, and why? Can a pathway have a large NES but a non-significant padj?</p>
+                <p><em>Hint: Consider what each metric measures: statistical confidence vs. effect size and direction.</em></p>
+            </div>
+        </section>
+
+        <!-- ============================================= -->
+        <!-- Summary                                       -->
+        <!-- ============================================= -->
+        <section id="summary">
+            <h2>Summary</h2>
+            <p>In this lab, you have:</p>
+            <ul>
+                <li>Loaded DESeq2 results and converted Ensembl gene IDs to Entrez IDs using <code>org.Hs.eg.db</code></li>
+                <li>Defined appropriate gene lists (significant DEGs, upregulated, downregulated) and a background universe for ORA</li>
+                <li>Run GO enrichment for Biological Process, Molecular Function, and Cellular Component using <code>clusterProfiler::enrichGO()</code></li>
+                <li>Run KEGG pathway enrichment and compared pathway-level results to GO term results</li>
+                <li>Built a continuously ranked gene list and run GSEA using <code>fgsea</code> with MSigDB Hallmark gene sets</li>
+                <li>Interpreted enrichment results in the biological context of TDP-43 knockdown</li>
+                <li>Visualized results using dotplots, barplots, and enrichment curve plots</li>
+            </ul>
+            <div style="margin-top: 2rem; display: flex; justify-content: space-between; align-items: center;">
+                <p><strong>Previous:</strong> <a href="lab-differential-expression.html">Lab 7: Differential Expression Analysis</a></p>
+                <p><strong>Next:</strong> <a href="lab-nfcore-differentialabundance.html">Lab 9: nf-core/differentialabundance</a></p>
+            </div>
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Data Analysis Course &mdash; KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        // Add copy buttons to all code blocks
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('pre');
+            codeBlocks.forEach(function(pre) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(pre);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', function() {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.textContent : pre.textContent;
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = 'Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>
