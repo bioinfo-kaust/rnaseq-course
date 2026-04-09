@@ -62,7 +62,7 @@
 ssh username@ilogin.ibex.kaust.edu.sa
 
 # Navigate to your workshop directory on scratch
-/ibex/user/$USER/workshop
+cd /ibex/user/$USER/workshop
 
 # Start an interactive session with enough memory for R
 srun --pty --time=4:00:00 --mem=32G --cpus-per-task=4 bash</code></pre>
@@ -349,9 +349,10 @@ as.data.frame(ekegg)[, c("ID", "Description", "GeneRatio", "p.adjust", "Count")]
                 <h3>Build a ranked gene list</h3>
                 <p>Rank all tested genes by their DESeq2 Wald statistic. Positive values indicate upregulation in TDP-43 KD; negative values indicate downregulation.</p>
                 <pre><code># Build ranked list: all genes sorted by Wald statistic (descending)
+# Note: use .data$stat to avoid conflict with the stats::stat function
 ranked_list <- res_df %>%
-    filter(!is.na(stat), !is.na(entrez_id)) %>%
-    arrange(desc(stat)) %>%
+    filter(!is.na(.data$stat), !is.na(entrez_id)) %>%
+    arrange(desc(.data$stat)) %>%
     select(entrez_id, stat)
 
 # Create a named numeric vector (required by fgsea)

@@ -294,7 +294,7 @@ wc -l da_results/deseq2/TDP43_KD_vs_control/significant_differential_expression.
 │       └── *.tsv                                # Filtered result tables at various thresholds
 ├── multiqc/
 │   └── multiqc_report.html                      # Integrated QC report including DESeq2 sections
-└── shinydiffexp/
+└── shinyngs_app/
     └── app.R                                    # Self-contained interactive Shiny application</code></pre>
             </div>
 
@@ -324,7 +324,7 @@ head -1 da_results/deseq2/TDP43_KD_vs_control/all_differential_expression.tsv | 
         <!-- ================================= -->
         <section id="part5">
             <h2>Part 5: Interpret the Interactive Shiny Report</h2>
-            <p>The <code>shinydiffexp</code> Shiny application provides an interactive interface for exploring differential expression results. It is a self-contained R app that can be run locally on your laptop after downloading it from Ibex.</p>
+            <p>The <code>shinyngs_app</code> Shiny application provides an interactive interface for exploring differential expression results. It is a self-contained R app that can be run locally on your laptop after downloading it from Ibex.</p>
 
             <div class="info-box tip">
                 <strong>What the Shiny app enables that static plots do not</strong>
@@ -340,18 +340,24 @@ head -1 da_results/deseq2/TDP43_KD_vs_control/all_differential_expression.tsv | 
             <div class="step" data-step="11">
                 <h3>Download the Shiny app to your laptop</h3>
                 <pre><code"># Run this on your LOCAL laptop terminal (not on Ibex)
-scp -r username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_da/da_results/shinydiffexp ./
+scp -r username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_da/da_results/shinyngs_app ./
+
+#Install shinyngs in conda environment
+<code>conda activate rnaseq
+mamba install r-shinyngs</code>
+
+Or
 
 # Then launch it in R on your laptop:
 # Open R or RStudio and run:
 # install.packages("shiny")   # only needed once
-# shiny::runApp("shinydiffexp/")</code></pre>
+# shiny::runApp("shinyngs_app/")</code></pre>
                 <div class="info-box note">
                     <strong>Sharing the Shiny report with collaborators</strong>
-                    <p>The <code>shinydiffexp/</code> directory is a self-contained Shiny app — it includes the results data embedded in the <code>app.R</code> file. You can share it by:</p>
+                    <p>The <code>shinyngs_app/</code> directory is a self-contained Shiny app — it includes the results data embedded in the <code>app.R</code> file. You can share it by:</p>
                     <ul>
                         <li><strong>Email / file transfer</strong> — zip the directory and send it; the recipient opens it in RStudio and clicks "Run App"</li>
-                        <li><strong>shinyapps.io</strong> — deploy for free with <code>rsconnect::deployApp("shinydiffexp/")</code> for a persistent URL</li>
+                        <li><strong>shinyapps.io</strong> — deploy for free with <code>rsconnect::deployApp("shinyngs_app/")</code> for a persistent URL</li>
                         <li><strong>Posit Connect / internal server</strong> — deploy on your institution's Shiny Server for authenticated access</li>
                     </ul>
                     <p>No bioinformatics installation is required on the collaborator's side — only R and the shiny package.</p>
