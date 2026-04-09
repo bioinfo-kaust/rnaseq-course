@@ -29,7 +29,7 @@
             <a href="#part3"><span class="part-num">Part 3</span><span class="part-label">Run Pipeline</span></a>
             <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">Output Structure</span></a>
             <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">Shiny Report</span></a>
-            <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">MultiQC Report</span></a>
+            <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">HTML Report</span></a>
         </div>
 
         <p>In this lab, you will run the <code>nf-core/differentialabundance</code> workflow on the GSE136366 (TDP-43/TARDBP knockdown) dataset using Salmon quantification output produced in the <strong>nf-core/rnaseq chr11 run</strong> (Lab 6). Because the chr11-filtered Salmon output is used, the analysis covers only chromosome 11 genes — the pipeline steps and output structure are identical to a full-genome run. You will prepare the required input files, execute the pipeline on Ibex, and interpret the resulting DESeq2 output tables and interactive Shiny report.</p>
@@ -59,7 +59,7 @@
                 <tr><th>Criterion</th><th>nf-core/differentialabundance</th><th>Manual DESeq2 (Jupyter/R)</th></tr>
                 <tr><td>Reproducibility</td><td>Pipeline version-locked, containerized</td><td>Depends on your environment management</td></tr>
                 <tr><td>Flexibility</td><td>Configured via parameters</td><td>Full scripting flexibility</td></tr>
-                <tr><td>Reporting</td><td>Automated interactive Shiny report + MultiQC</td><td>Custom plots and tables</td></tr>
+                <tr><td>Reporting</td><td>Automated interactive Shiny report + HTML Report</td><td>Custom plots and tables</td></tr>
                 <tr><td>Multiple contrasts</td><td>Defined declaratively in a CSV file</td><td>Manual loop or separate scripts</td></tr>
                 <tr><td>Best for</td><td>Standard comparisons, sharing with collaborators, auditable analyses</td><td>Custom filtering, novel visualizations, exploratory work</td></tr>
             </table>
@@ -292,8 +292,8 @@ wc -l da_results/deseq2/TDP43_KD_vs_control/significant_differential_expression.
 ├── tables/
 │   └── TDP43_KD_vs_control/
 │       └── *.tsv                                # Filtered result tables at various thresholds
-├── multiqc/
-│   └── multiqc_report.html                      # Integrated QC report including DESeq2 sections
+├── report/
+│   └── report.html                              # Integrated QC report including DESeq2 sections
 └── shinyngs_app/
     └── app.R                                    # Self-contained interactive Shiny application</code></pre>
             </div>
@@ -420,31 +420,30 @@ grep "TARDBP" da_results/deseq2/TDP43_KD_vs_control/all_differential_expression.
         </section>
 
         <!-- ================================= -->
-        <!-- Part 6: MultiQC Report            -->
+        <!-- Part 6: HTML Report            -->
         <!-- ================================= -->
         <section id="part6">
-            <h2>Part 6: Interpret the MultiQC Report</h2>
-            <p>The pipeline generates a MultiQC report that aggregates QC metrics and DESeq2 summary statistics into a single HTML file.</p>
+            <h2>Part 6: Interpret the Report</h2>
+            <p>The pipeline generates a report that aggregates QC metrics and DESeq2 summary statistics into a single HTML file.</p>
 
             <div class="step" data-step="14">
-                <h3>Open the MultiQC report</h3>
-                <pre><code"># Download the MultiQC report to your laptop
-scp username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_da/da_results/multiqc/multiqc_report.html ./
+                <h3>Open the report</h3>
+                <pre><code"># Download the results and the HTML report to your laptop
+scp -r username@ilogin.ibex.kaust.edu.sa:/ibex/user/$USER/workshop/nfcore_da/da_results/</code></pre>
 
-# Open in your browser
-open multiqc_report.html    # macOS
-# xdg-open multiqc_report.html   # Linux</code></pre>
+Open the report your browser
+
             </div>
 
             <div class="step" data-step="15">
-                <h3>Key sections to review in the MultiQC report</h3>
+                <h3>Key sections to review in the report</h3>
                 <p>Navigate through the report sections and look for the following:</p>
                 <ul>
                     <li>
                         <strong>DESeq2 — Dispersion estimates</strong>: The dispersion plot shows how per-gene variance estimates were shrunk toward the fitted mean-dispersion trend. Well-behaved data shows a smooth trend line with most gene-level estimates clustering closely around it.
                     </li>
                     <li>
-                        <strong>DESeq2 — PCA</strong>: The PCA plot in MultiQC matches the one in the Shiny app. Confirm PC1 separates control from TDP43_KD samples — this is the primary axis of variation in a well-designed knockdown experiment.
+                        <strong>DESeq2 — PCA</strong>: The PCA plot in the HTML report matches the one in the Shiny app. Confirm PC1 separates control from TDP43_KD samples — this is the primary axis of variation in a well-designed knockdown experiment.
                     </li>
                     <li>
                         <strong>DESeq2 — MA plot</strong>: In the MA plot, most genes should lie along the horizontal axis (no fold change). Significantly DE genes are highlighted in color. A symmetric distribution of up- and down-regulated genes is typical; a strong asymmetry may indicate a normalization issue or a large-scale transcriptional response to TDP-43 loss.
@@ -507,7 +506,7 @@ open multiqc_report.html    # macOS
                 <li>Navigated the output directory structure and identified the key result files</li>
                 <li>Interpreted DESeq2 result table columns including <code>baseMean</code>, <code>log2FoldChange</code>, <code>pvalue</code>, and <code>padj</code></li>
                 <li>Explored results interactively using the Shiny report and compared them to Lab 7 manual DESeq2 output</li>
-                <li>Reviewed the MultiQC report for dispersion estimates, PCA, and MA plot interpretation</li>
+                <li>Reviewed the HTML report for dispersion estimates, PCA, and MA plot interpretation</li>
             </ul>
             <p>
                 <strong>Previous:</strong> <a href="lab-functional-enrichment.html">Lab 8: Functional Enrichment Analysis</a>
