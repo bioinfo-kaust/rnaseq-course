@@ -30,6 +30,7 @@
             <a href="#part4"><span class="part-num">Part 4</span><span class="part-label">Output Structure</span></a>
             <a href="#part5"><span class="part-num">Part 5</span><span class="part-label">Shiny Report</span></a>
             <a href="#part6"><span class="part-num">Part 6</span><span class="part-label">HTML Report</span></a>
+            <a href="#part7"><span class="part-num">Part 7</span><span class="part-label">Enrichment Analysis</span></a>
         </div>
 
         <p>In this lab, you will run the <code>nf-core/differentialabundance</code> workflow on the GSE136366 (TDP-43/TARDBP knockdown) dataset using Salmon quantification output produced in the <strong>nf-core/rnaseq chr11 run</strong> (Lab 6). Because the chr11-filtered Salmon output is used, the analysis covers only chromosome 11 genes — the pipeline steps and output structure are identical to a full-genome run. You will prepare the required input files, execute the pipeline on Ibex, and interpret the resulting DESeq2 output tables and interactive Shiny report.</p>
@@ -49,6 +50,7 @@
                 <li>Explore results using the interactive Shiny report</li>
                 <li>Interpret DESeq2 result columns and significance thresholds</li>
                 <li>Compare automated workflow results with manual DESeq2 analysis from Lab 7</li>
+                <li>Run GO enrichment, pathway enrichment (gprofiler2), and GSEA as part of the pipeline</li>
             </ul>
         </div>
 
@@ -456,6 +458,137 @@ Open the report your browser
         </section>
 
         <!-- ================================= -->
+        <!-- Part 7: Enrichment Analysis       -->
+        <!-- ================================= -->
+        <section id="part7">
+            <h2>Part 7: Automated Enrichment Analysis (GO, Pathway &amp; GSEA)</h2>
+            <p><code>nf-core/differentialabundance</code> can run enrichment analysis as an integrated pipeline step using two complementary approaches:</p>
+            <ul>
+                <li><strong>gprofiler2</strong> — Over-Representation Analysis (ORA) against GO Biological Process, Molecular Function, Cellular Component, KEGG pathways, Reactome, and WikiPathways. Uses the g:Profiler web API; no local gene set files required. Operates on the list of significant DEGs.</li>
+                <li><strong>GSEA</strong> — Gene Set Enrichment Analysis (Broad Institute implementation). Uses the full ranked gene list (Wald statistic), so it does not require a hard significance cutoff. Requires a gene sets file in GMT format.</li>
+            </ul>
+            <div class="info-box tip">
+                <strong>Enrichment in the pipeline vs. Lab 8</strong>
+                <p>Lab 8 ran enrichment manually in R using <code>clusterProfiler</code> and <code>fgsea</code>. The pipeline approach here adds the same analyses automatically to every contrast, with results embedded in the HTML report and Shiny app. The statistical methods are equivalent — the pipeline gives you reproducibility and report integration; the manual approach gives you more flexibility to customise plots and parameters.</p>
+            </div>
+            <div class="info-box warning">
+                <strong>Why gprofiler2 output may be empty with the chr11 dataset</strong>
+                <p>gprofiler2 runs ORA on the <em>significant</em> DEGs (padj &lt; <code>--deseq2_alpha</code>, default 0.05). The chr11 subset contains only ~1,300 testable genes — a small fraction of the full human transcriptome — so very few genes reach significance, and g:Profiler returns no enriched terms when the query is too small (&lt; 5–10 genes).</p>
+                <p><strong>Fix:</strong> add <code>--deseq2_alpha 0.1</code> to the pipeline command. This relaxes DESeq2's significance threshold, increasing the number of genes passed to gprofiler2 without changing how GSEA runs (GSEA uses the full ranked gene list regardless of the alpha threshold).</p>
+                <p>In a full-genome run this issue does not arise — TDP-43 KD produces hundreds of significant DEGs genome-wide.</p>
+            </div>
+
+            <div class="step" data-step="16">
+                <h3>Download MSigDB Hallmark gene sets for GSEA</h3>
+                <p>GSEA requires a gene sets file in GMT format. The MSigDB Hallmark collection (50 curated gene sets) is a good starting point. Download it once into a shared directory:</p>
+                <pre><code>mkdir -p /ibex/user/$USER/workshop/gene_sets
+cd /ibex/user/$USER/workshop/gene_sets
+
+# Download Hallmark gene sets (HGNC symbols, human) from MSigDB
+wget -q "https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/h.all.v2023.2.Hs.symbols.gmt"
+
+# Optional: also download C2 curated gene sets (KEGG + Reactome) for broader pathway coverage
+wget -q "https://data.broadinstitute.org/gsea-msigdb/msigdb/release/2023.2.Hs/c2.cp.v2023.2.Hs.symbols.gmt"
+
+# Confirm the files are present
+ls -lh /ibex/user/$USER/workshop/gene_sets/</code></pre>
+                <div class="info-box note">
+                    <strong>GMT file format</strong>
+                    <p>Each line in a GMT file represents one gene set: tab-separated with the gene set name in column 1, a description in column 2, and gene symbols from column 3 onwards. GSEA expects gene symbols that match the identifiers in the expression matrix — <code>nf-core/differentialabundance</code> uses HGNC gene symbols by default, so the <code>*.symbols.gmt</code> files from MSigDB are correct.</p>
+                </div>
+            </div>
+
+            <div class="step" data-step="17">
+                <h3>Rerun the pipeline with enrichment parameters</h3>
+                <p>Add the enrichment flags to the existing command and rerun with <code>-resume</code>. Nextflow will skip all already-completed steps (DESeq2, QC, etc.) and only run the new enrichment processes:</p>
+                <pre><code>cd /ibex/user/$USER/workshop/nfcore_da
+
+nextflow run nf-core/differentialabundance -r 1.5.0 \
+    --input samplesheet.csv \
+    --contrasts contrasts.csv \
+    --matrix /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon.merged.gene_counts_length_scaled.tsv \
+    --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
+    --outdir da_results \
+    --deseq2_vst_nsub 500 \
+    --deseq2_alpha 0.1 \
+    --gprofiler2_run \
+    --gprofiler2_organism hsapiens \
+    --gsea_run \
+    --gene_sets_files /ibex/user/$USER/workshop/gene_sets/h.all.v2023.2.Hs.symbols.gmt \
+    -profile kaust \
+    -resume</code></pre>
+                <div class="info-box note">
+                    <strong>New enrichment parameters explained</strong>
+                    <table class="schedule-table">
+                        <tr><th>Parameter</th><th>Description</th></tr>
+                        <tr><td><code>--deseq2_alpha 0.1</code></td><td>Relaxed significance threshold for the chr11 dataset. Increases the number of DEGs passed to gprofiler2. Use the default (0.05) for full-genome runs.</td></tr>
+                        <tr><td><code>--gprofiler2_run</code></td><td>Enable gprofiler2 ORA. Runs against GO (BP, MF, CC), KEGG, Reactome, and WikiPathways using the significant DEGs from each contrast as input.</td></tr>
+                        <tr><td><code>--gprofiler2_organism</code></td><td>Organism identifier for the g:Profiler database. Use <code>hsapiens</code> for human, <code>mmusculus</code> for mouse.</td></tr>
+                        <tr><td><code>--gsea_run</code></td><td>Enable GSEA (Broad Institute Java implementation). Genes are ranked by the DESeq2 Wald statistic before GSEA runs. Not affected by <code>--deseq2_alpha</code>.</td></tr>
+                        <tr><td><code>--gene_sets_files</code></td><td>Path to one or more GMT gene set files (comma-separated if multiple). Used as the GSEA gene set database.</td></tr>
+                    </table>
+                </div>
+                <div class="info-box tip">
+                    <strong>Submitting as a SLURM batch job</strong>
+                    <pre><code>sbatch --job-name=nfcore_da_enrich \
+    --mem=8G \
+    --cpus-per-task=2 \
+    --time=4:00:00 \
+    --output=da_enrich_%j.log \
+    --wrap="module purge && module load nextflow && module load singularity && \
+        export NXF_SINGULARITY_CACHEDIR=/ibex/user/$USER/singularity_cache && \
+        nextflow run nf-core/differentialabundance -r 1.5.0 \
+            --input samplesheet.csv \
+            --contrasts contrasts.csv \
+            --matrix /ibex/user/$USER/workshop/nfcore_rnaseq/results/star_salmon/salmon.merged.gene_counts_length_scaled.tsv \
+            --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
+            --outdir da_results \
+            --deseq2_vst_nsub 500 \
+            --deseq2_alpha 0.1 \
+            --gprofiler2_run \
+            --gprofiler2_organism hsapiens \
+            --gsea_run \
+            --gene_sets_files /ibex/user/$USER/workshop/gene_sets/h.all.v2023.2.Hs.symbols.gmt \
+            -profile kaust \
+            -resume"</code></pre>
+                </div>
+            </div>
+
+            <div class="step" data-step="18">
+                <h3>Explore the enrichment output files</h3>
+                <pre><code># gprofiler2 output — one directory per contrast
+ls da_results/*/gprofiler2
+
+# View the top enriched GO terms
+head -5 da_results/*/gprofiler2/*/*.tsv
+
+# GSEA output — one directory per contrast
+ls da_results/report/gsea/TDP43_KD_vs_control/
+
+# View the GSEA summary table for the Hallmark gene sets
+ls da_results/report/gsea/TDP43_KD_vs_control/*.GseaPreranked*/</code></pre>
+            </div>
+
+            <div class="step" data-step="19">
+                <h3>Interpret the enrichment results</h3>
+                <p><strong>gprofiler2</strong></p>
+                <p>Open <code>da_results/tables/gprofiler2/TDP43_KD_vs_control/TDP43_KD_vs_control.gprofiler2.all_enriched_pathways.tsv </code> file and explore.</p>
+                
+                <p><strong>GSEA</strong>, open <code>da_results/report/gsea/TDP43_KD_vs_control/*/*index.html</code> in your browser and examine</p>
+
+                <ul>
+                    <li><strong>NES (Normalized Enrichment Score)</strong> — positive NES means the gene set is enriched toward upregulated genes (higher expression in TDP-43 KD); negative NES means enriched toward downregulated genes</li>
+                    <li><strong>FDR q-value</strong> — use &lt; 0.25 as the standard GSEA significance threshold (more permissive than the 0.05 used for ORA, because GSEA tests are correlated)</li>
+                    <li><strong>Enrichment score plot</strong> — the running sum plot for each significant gene set; the peak indicates where the gene set members are concentrated in the ranked list</li>
+                </ul>
+                <div class="info-box tip">
+                    <strong>Connecting enrichment results to TDP-43 biology</strong>
+                    <p>TDP-43 is an RNA-binding protein involved in RNA processing, splicing, and stress granule formation. In TDP-43 KD cells (GSE136366), expect to find enrichment in: RNA metabolic processes and splicing (GO:BP), stress response pathways (Hallmark UNFOLDED PROTEIN RESPONSE, TNFA SIGNALING), and neurodegeneration-related terms (Hallmark APOPTOSIS). A strong negative NES for MYC targets or E2F targets Hallmarks would indicate broad transcriptional repression downstream of TDP-43 loss.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ================================= -->
         <!-- Exercises                         -->
         <!-- ================================= -->
         <section id="exercises">
@@ -507,6 +640,8 @@ Open the report your browser
                 <li>Interpreted DESeq2 result table columns including <code>baseMean</code>, <code>log2FoldChange</code>, <code>pvalue</code>, and <code>padj</code></li>
                 <li>Explored results interactively using the Shiny report and compared them to Lab 7 manual DESeq2 output</li>
                 <li>Reviewed the HTML report for dispersion estimates, PCA, and MA plot interpretation</li>
+                <li>Reran the pipeline with <code>--gprofiler2_run</code> and <code>--gsea_run</code> to add GO enrichment, pathway enrichment, and GSEA in a single <code>-resume</code> run</li>
+                <li>Interpreted gprofiler2 ORA results (significant GO/KEGG/Reactome terms) and GSEA NES/FDR output for the TDP-43 KD contrast</li>
             </ul>
             <p>
                 <strong>Previous:</strong> <a href="lab-functional-enrichment.html">Lab 8: Functional Enrichment Analysis</a>
