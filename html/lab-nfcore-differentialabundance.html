@@ -348,10 +348,17 @@ mamba install r-shinyngs</code>
 
 Or
 
-# Then launch it in R on your laptop:
-# Open R or RStudio and run:
-# install.packages("shiny")   # only needed once
-# shiny::runApp("shinyngs_app/")</code></pre>
+#start R session and install shinyngs package, only needed for the first time
+if (!require("devtools")) install.packages("devtools")
+devtools::install_github('pinin4fjords/shinyngs', upgrade_dependencies = FALSE) 
+
+#change dirctory to the shiny app folder
+cd da_results/shinyngs_app/study/
+
+Rscript app.R
+
+#or inside R, use:
+shiny::runApp("shinyngs_app/")</code></pre>
                 <div class="info-box note">
                     <strong>Sharing the Shiny report with collaborators</strong>
                     <p>The <code>shinyngs_app/</code> directory is a self-contained Shiny app — it includes the results data embedded in the <code>app.R</code> file. You can share it by:</p>
