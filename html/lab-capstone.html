@@ -1,0 +1,611 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Lab 10: Capstone — End-to-End RNA-seq Analysis — RNA-seq Data Analysis Course</title>
+    <link rel="stylesheet" href="../css/style.css">
+</head>
+<body>
+    <nav>
+        <div class="nav-container">
+            <a href="../index.html" class="logo">The Bioinformatics Platform - KAUST</a>
+            <button class="nav-toggle" onclick="toggleNav()">&#9776;</button>
+            <ul id="nav-menu">
+                <li><a href="../index.html">Home</a></li>
+                <li><a href="schedule.html">Schedule</a></li>
+                <li><a href="labs.html" class="active">Labs</a></li>
+                <li><a href="setup.html">Setup</a></li>
+            </ul>
+        </div>
+    </nav>
+
+    <main>
+        <h1>Lab 10: Capstone &mdash; End-to-End RNA-seq Analysis</h1>
+
+        <div class="lab-nav">
+            <a href="#overview"><span class="part-num">Overview</span><span class="part-label">Goals</span></a>
+            <a href="#dataset"><span class="part-num">Part 1</span><span class="part-label">Dataset Recap</span></a>
+            <a href="#checklist"><span class="part-num">Part 2</span><span class="part-label">Analysis Checklist</span></a>
+            <a href="#interpretation"><span class="part-num">Part 3</span><span class="part-label">Interpretation</span></a>
+            <a href="#outputs"><span class="part-num">Part 4</span><span class="part-label">Expected Outputs</span></a>
+            <a href="#extensions"><span class="part-num">Part 5</span><span class="part-label">Extensions</span></a>
+        </div>
+
+        <p>Congratulations on making it to the final lab. Over the past week you have built every skill needed to take raw sequencing reads all the way through to a biological interpretation. This capstone puts all those pieces together into a single, self-directed analysis of the course dataset.</p>
+
+        <p>The goal is not to follow a rigid script — it is to demonstrate that you can run a complete, reproducible RNA-seq workflow independently, understand what each step is doing, and draw meaningful conclusions from the results. Work at your own pace, collaborate with your neighbours, and refer back to earlier labs whenever you need a reminder.</p>
+
+        <div class="info-box tip">
+            <strong>You are not alone — use your earlier labs as a reference</strong>
+            <p>Every command, parameter, and concept you need for this capstone was covered in Labs 1–9. If you are unsure how to do something, look it up in the relevant lab first. A list of key references:</p>
+            <ul>
+                <li><strong>Lab 1</strong> — Genomic file formats (FASTA, FASTQ, BAM, GTF)</li>
+                <li><strong>Lab 2</strong> — Public data retrieval (SRA, reference genome download)</li>
+                <li><strong>Lab 3</strong> — FastQC, fastp, MultiQC</li>
+                <li><strong>Lab 4</strong> — STAR alignment and BAM post-processing</li>
+                <li><strong>Lab 5</strong> — Salmon quantification and exploratory QC</li>
+                <li><strong>Lab 6</strong> — Running nf-core/rnaseq</li>
+                <li><strong>Lab 7</strong> — DESeq2 differential expression and visualization</li>
+                <li><strong>Lab 8</strong> — GO and pathway enrichment analysis</li>
+                <li><strong>Lab 9</strong> — Running nf-core/differentialabundance</li>
+            </ul>
+        </div>
+
+        <!-- ======================================= -->
+        <!-- Overview                                 -->
+        <!-- ======================================= -->
+        <section id="overview">
+            <h2>Overview</h2>
+            <p>In this capstone you will perform a complete RNA-seq analysis of <strong>GSE136366</strong>, a human RNA-seq dataset studying the transcriptomic consequences of TDP-43 (TARDBP) knockdown. You will work through each analytical stage — from raw read quality control to functional enrichment — and cross-check your results using the <code>nf-core/differentialabundance</code> workflow.</p>
+
+            <h3>Expected Deliverables</h3>
+            <p>By the end of this lab you should have produced the following:</p>
+            <ol>
+                <li>A <strong>MultiQC HTML report</strong> summarizing QC metrics across all samples</li>
+                <li><strong>GO enrichment dotplot</strong>, <strong>KEGG pathway dotplot</strong>, and <strong>GSEA barplot</strong> (PDFs)</li>
+                <li>The <strong>nf-core/differentialabundance Shiny report</strong> for interactive exploration (includes DESeq2 results, volcano plot, MA plot, heatmap, and PCA)</li>
+                <li>A short <strong>written interpretation summary</strong> (~1 page) answering the questions in Part 3</li>
+            </ol>
+        </section>
+
+        <!-- ======================================= -->
+        <!-- Part 1: Course Dataset                   -->
+        <!-- ======================================= -->
+        <section id="dataset">
+            <h2>Part 1: Recap &mdash; Course Dataset (GSE136366)</h2>
+
+            <h3>Biological Background</h3>
+            <p><strong>TDP-43</strong> (encoded by the <em>TARDBP</em> gene) is a highly conserved RNA-binding protein with critical roles in RNA metabolism, including pre-mRNA splicing, mRNA stability, and the regulation of non-coding RNAs. Loss-of-function or cytoplasmic mislocalization of TDP-43 is a defining pathological hallmark of two devastating neurodegenerative diseases: <strong>Amyotrophic Lateral Sclerosis (ALS)</strong> and <strong>Frontotemporal Lobar Degeneration (FTLD)</strong>.</p>
+            <p>GSE136366 uses RNA-seq to systematically characterize the transcriptomic changes that occur when TDP-43 is knocked down in human cells. By comparing knockdown samples to controls, the study reveals which genes and pathways are directly or indirectly regulated by TDP-43, providing mechanistic insight into how its loss contributes to neurodegeneration.</p>
+
+            <h3>Dataset Properties</h3>
+            <table class="schedule-table">
+                <tr><th>Property</th><th>Value</th></tr>
+                <tr><td>GEO Accession</td><td><code>GSE136366</code></td></tr>
+                <tr><td>Organism</td><td><em>Homo sapiens</em></td></tr>
+                <tr><td>Condition</td><td>TDP-43 (TARDBP) knockdown vs. control (siRNA)</td></tr>
+                <tr><td>Cell type</td><td>Human neuronal/cellular model</td></tr>
+                <tr><td>Platform</td><td>Illumina (paired-end)</td></tr>
+                <tr><td>Reference genome</td><td>GRCh38 (Ensembl release 110)</td></tr>
+                <tr><td>Number of samples</td><td>6 (3 TDP-43 KD, 3 control)</td></tr>
+                <tr><td>Read length</td><td>~150 bp paired-end</td></tr>
+            </table>
+
+            <h3>Data Location on Ibex</h3>
+            <p>By the end of earlier labs your Ibex workspace should look like this. Use this as a reference map as you work through the checklist below.</p>
+
+            <div class="step" data-step="1">
+                <h3>Expected directory structure</h3>
+                <pre><code>/ibex/user/$USER/workshop/
+├── raw_data/                        # Lab 2: original FASTQs
+│   ├── SRR_Acc_List.txt
+│   ├── SRR10009250_1.fastq.gz
+│   ├── SRR10009250_2.fastq.gz
+│   ├── SRR10009251_1.fastq.gz
+│   ├── SRR10009251_2.fastq.gz
+│   ├── SRR10009252_1.fastq.gz
+│   ├── SRR10009252_2.fastq.gz
+│   ├── SRR10009253_1.fastq.gz
+│   ├── SRR10009253_2.fastq.gz
+│   ├── SRR10009254_1.fastq.gz
+│   ├── SRR10009254_2.fastq.gz
+│   ├── SRR10009255_1.fastq.gz
+│   └── SRR10009255_2.fastq.gz
+├── references/                      # Lab 2: reference genome and annotation
+│   ├── GRCh38_genome.fa
+│   └── GRCh38_genes.gtf
+├── nfcore_rnaseq/                   # Card 2: nf-core/rnaseq workflow
+│   ├── samplesheet.csv
+│   └── results/
+│       ├── multiqc/
+│       │   └── multiqc_report.html
+│       └── star_salmon/
+│           ├── SRR10009250/quant.sf
+│           ├── ...
+│           └── salmon.merged.gene_counts_length_scaled.tsv
+├── enrichment/                      # Card 5: Enrichment analysis
+│   ├── go_enrichment_dotplot.pdf
+│   ├── kegg_dotplot.pdf
+│   └── gsea_hallmark_barplot.pdf
+└── nfcore_diffab/                   # Card 4: nf-core/differentialabundance
+    ├── samplesheet.csv
+    ├── contrasts.csv
+    └── results/
+        └── shiny/</code></pre>
+                <div class="info-box note">
+                    <strong>Missing files?</strong>
+                    <p>If any directories are missing, refer back to the corresponding lab to regenerate them before proceeding. The checklist below will also remind you which step each file comes from.</p>
+                </div>
+            </div>
+        </section>
+
+        <!-- ======================================= -->
+        <!-- Part 2: End-to-End Checklist             -->
+        <!-- ======================================= -->
+        <section id="checklist">
+            <h2>Part 2: End-to-End Analysis Checklist</h2>
+            <p>Work through each card in order. Each one describes what to do and why it matters. Use the hint sections if you get stuck. Check off each card mentally once you are satisfied with the output.</p>
+
+            <!-- Card 1 -->
+            <div class="card">
+                <h3>1. Download and Prepare Data</h3>
+                <p>Verify that the GSE136366 FASTQ files are present and the reference genome is in place. If files are missing, download them now using <code>sra-toolkit</code> before proceeding.</p>
+                <ul>
+                    <li>Confirm that all 12 FASTQ files (<code>*_1.fastq.gz</code>, <code>*_2.fastq.gz</code> for 6 samples) are present in <code>raw_data/</code></li>
+                    <li>Confirm that the GRCh38 reference genome FASTA and GTF are in <code>references/</code></li>
+                    <li>Create the output directories needed for the workflows</li>
+                </ul>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code>module load sratoolkit
+
+cd /ibex/user/$USER/workshop
+mkdir -p raw_data references nfcore_rnaseq nfcore_diffab enrichment
+
+# Check if FASTQs are already present (12 files expected)
+ls raw_data/*.fastq.gz 2>/dev/null | wc -l
+
+# If files are missing, download the full dataset from SRA
+# GSE136366 accessions: SRR10009250–SRR10009255
+cat &lt;&lt;EOF &gt; raw_data/SRR_Acc_List.txt
+SRR10009250
+SRR10009251
+SRR10009252
+SRR10009253
+SRR10009254
+SRR10009255
+EOF
+
+# Download paired-end FASTQs (run inside a SLURM job or interactive session)
+while read srr; do
+    fasterq-dump "$srr" \
+        --outdir raw_data/ \
+        --split-files \
+        --threads 8 \
+        --progress
+    # Compress output
+    gzip raw_data/${srr}_1.fastq raw_data/${srr}_2.fastq
+done &lt; raw_data/SRR_Acc_List.txt
+
+# Verify all 12 files are present and non-empty
+ls -lh raw_data/*.fastq.gz
+
+# Verify reference files (downloaded in Lab 2)
+ls -lh references/</code></pre>
+                </details>
+            </div>
+
+            <!-- Card 2 -->
+            <div class="card">
+                <h3>2. Run nf-core/rnaseq</h3>
+                <p>Use the samplesheet and <code>nextflow.config</code> from Lab 6 to run the <code>nf-core/rnaseq</code> workflow on all samples. Use the GRCh38 reference genome and GTF annotation. The workflow will run STAR alignment, Salmon quantification, and a comprehensive QC suite in one step.</p>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code>module load nextflow
+
+cd /ibex/user/$USER/workshop
+
+# Your samplesheet.csv should look like:
+# sample,fastq_1,fastq_2,strandedness
+# SRR10009250_KD,raw_data/SRR10009250_1.fastq.gz,raw_data/SRR10009250_2.fastq.gz,auto
+# SRR10009251_KD,...
+# SRR10009252_CTRL,...
+
+# Run nf-core/rnaseq
+nextflow run nf-core/rnaseq \
+    -r 3.23.0 \
+    -profile kaust \
+    --input nfcore_rnaseq/samplesheet.csv \
+    --outdir nfcore_rnaseq/results \
+    --genome GRCh38 \
+    --fasta references/GRCh38_genome.fa \
+    --gtf references/GRCh38_genes.gtf \
+    --aligner star_salmon \
+    -resume
+
+# Monitor progress
+nextflow log</code></pre>
+                </details>
+            </div>
+
+            <!-- Card 3 -->
+            <div class="card">
+                <h3>3. Check the MultiQC Report</h3>
+                <p>Open the MultiQC report generated by <code>nf-core/rnaseq</code> (in <code>nfcore_rnaseq/results/multiqc/</code>). Record the following metrics for each sample and flag any outliers:</p>
+                <ul>
+                    <li>Uniquely mapped reads (%) — expect &gt;70% for a good human RNA-seq run</li>
+                    <li>Duplication rate (%) — high duplication may indicate poor library complexity</li>
+                    <li>Adapter content — should be near zero after trimming</li>
+                    <li>% Assigned reads (featureCounts) — how many reads map to annotated genes</li>
+                    <li>RSeQC read distribution — are reads predominantly in exons?</li>
+                </ul>
+                <div class="info-box note">
+                    <strong>What to look for</strong>
+                    <p>Any sample with mapping rate below 60%, duplication above 80%, or dramatically different read counts compared to its replicates should be noted. Consider whether it should be excluded from downstream analysis and document your reasoning.</p>
+                </div>
+            </div>
+
+            <!-- Card 4 -->
+            <div class="card">
+                <h3>4. Run nf-core/differentialabundance</h3>
+                <p>Run the <code>nf-core/differentialabundance</code> workflow using the merged count matrix from <code>nf-core/rnaseq</code>. The workflow will run DESeq2, produce an interactive Shiny report with volcano plots, MA plots, heatmaps, and PCA, and optionally run GO and GSEA enrichment analysis.</p>
+                <ul>
+                    <li>Prepare a samplesheet with a <code>condition</code> column and a <code>contrasts.csv</code> defining KD vs. control</li>
+                    <li>Use the <code>salmon.merged.gene_counts_length_scaled.tsv</code> matrix from <code>nf-core/rnaseq</code></li>
+                    <li>Refer to <a href="lab-nfcore-differentialabundance.html">Lab 9</a> for the full samplesheet format and parameter details</li>
+                </ul>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code>module load nextflow
+
+cd /ibex/user/$USER/workshop
+
+# samplesheet.csv format (condition column required):
+# sample,condition,replicate
+# SRR10009250_KD,KD,1
+# SRR10009251_KD,KD,2
+# SRR10009252_KD,KD,3
+# SRR10009253_CTRL,CTRL,1
+# SRR10009254_CTRL,CTRL,2
+# SRR10009255_CTRL,CTRL,3
+
+# contrasts.csv:
+# id,variable,reference,target
+# KD_vs_CTRL,condition,CTRL,KD
+
+nextflow run nf-core/differentialabundance \
+    -r 1.5.0 \
+    -profile kaust \
+    --input nfcore_diffab/samplesheet.csv \
+    --contrasts nfcore_diffab/contrasts.csv \
+    --matrix nfcore_rnaseq/results/star_salmon/salmon.merged.gene_counts_length_scaled.tsv \
+    --gtf /biocorelab/BIX/resources/genomes/workshops/human-chr11/GRCh38.chr11.gtf \
+    --outdir nfcore_diffab/results \
+    --deseq2_vst_nsub 500 \
+    --deseq2_alpha 0.1 \
+    --gprofiler2_run \
+    --gprofiler2_organism hsapiens \
+    --gsea_run \
+    --gene_sets_files /ibex/user/$USER/workshop/gene_sets/h.all.v2023.2.Hs.symbols.gmt \
+    -resume
+
+# When complete, explore the output:
+ls nfcore_diffab/results/
+ls nfcore_diffab/results/deseq2/
+ls nfcore_diffab/results/shiny/</code></pre>
+                </details>
+            </div>
+
+            <!-- Card 5 -->
+            <div class="card">
+                <h3>5. Functional Enrichment Analysis</h3>
+                <p>Perform three types of enrichment analysis to understand the biological processes affected by TDP-43 knockdown:</p>
+                <ul>
+                    <li><strong>GO Biological Process ORA</strong> — over-representation analysis on the set of significant upregulated genes (padj &lt; 0.05, LFC &gt; 1)</li>
+                    <li><strong>KEGG pathway ORA</strong> — identify dysregulated KEGG pathways among significant genes</li>
+                    <li><strong>GSEA with Hallmark gene sets</strong> — gene set enrichment analysis using the full ranked gene list (ranked by log2FoldChange * -log10(padj))</li>
+                </ul>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code>library(clusterProfiler)
+library(org.Hs.eg.db)
+library(msigdbr)
+library(enrichplot)
+
+# Load DESeq2 results produced by nf-core/differentialabundance
+res_df &lt;- read.delim(
+    "nfcore_diffab/results/deseq2/KD_vs_CTRL.deseq2.results.tsv",
+    stringsAsFactors = FALSE
+)
+# Column names: gene_id, baseMean, log2FoldChange, lfcSE, stat, pvalue, padj, gene_name
+res_df$gene &lt;- res_df$gene_name   # use gene symbols for enrichment
+
+# Convert gene symbols to Entrez IDs
+sig_up &lt;- subset(res_df, padj &lt; 0.05 &amp; log2FoldChange &gt; 1)$gene
+entrez_up &lt;- bitr(sig_up, fromType="SYMBOL", toType="ENTREZID",
+                   OrgDb=org.Hs.eg.db)$ENTREZID
+
+# GO BP ORA
+go_res &lt;- enrichGO(gene=entrez_up, OrgDb=org.Hs.eg.db,
+                    ont="BP", pAdjustMethod="BH",
+                    pvalueCutoff=0.05, readable=TRUE)
+pdf("enrichment/go_enrichment_dotplot.pdf", width=9, height=8)
+dotplot(go_res, showCategory=20) +
+    ggtitle("GO Biological Process: Upregulated in TDP-43 KD")
+dev.off()
+
+# KEGG pathway ORA
+kegg_res &lt;- enrichKEGG(gene=entrez_up, organism="hsa",
+                        pAdjustMethod="BH", pvalueCutoff=0.05)
+kegg_res &lt;- setReadable(kegg_res, OrgDb=org.Hs.eg.db, keyType="ENTREZID")
+pdf("enrichment/kegg_dotplot.pdf", width=9, height=8)
+dotplot(kegg_res, showCategory=20) +
+    ggtitle("KEGG Pathway ORA: Upregulated in TDP-43 KD")
+dev.off()
+
+# Hallmark GSEA
+hallmark_sets &lt;- msigdbr(species="Homo sapiens", category="H")
+
+ranked &lt;- res_df$log2FoldChange * -log10(res_df$padj + 1e-300)
+names(ranked) &lt;- res_df$gene
+ranked &lt;- sort(ranked[!is.na(ranked)], decreasing=TRUE)
+
+gsea_res &lt;- GSEA(ranked, TERM2GENE=hallmark_sets[, c("gs_name","gene_symbol")],
+                  pvalueCutoff=0.05, verbose=FALSE)
+pdf("enrichment/gsea_hallmark_barplot.pdf", width=10, height=8)
+barplot(gsea_res, showCategory=20) +
+    ggtitle("GSEA Hallmark Gene Sets: TDP-43 KD vs Control")
+dev.off()</code></pre>
+                </details>
+            </div>
+
+            <!-- Card 6 -->
+            <div class="card">
+                <h3>6. Biological Interpretation</h3>
+                <p>This is the most important step. Review all your outputs and answer the interpretation questions in Part 3 below. Write your answers as a short summary (~1 page). Think about what the data tells you biologically, not just statistically.</p>
+                <div class="info-box tip">
+                    <strong>Tip: Cross-reference the literature</strong>
+                    <p>TDP-43 biology is well-studied. Look up the original GSE136366 publication (Rot et al., 2017 or the associated paper) and compare your top DEGs and enriched pathways to what was reported. Does your independent analysis recover the same findings?</p>
+                </div>
+            </div>
+
+        </section>
+
+        <!-- ======================================= -->
+        <!-- Part 3: Interpretation Questions         -->
+        <!-- ======================================= -->
+        <section id="interpretation">
+            <h2>Part 3: Interpretation Questions</h2>
+            <p>Answer these questions in writing as part of your capstone deliverable. Aim for 2–4 sentences per question — be specific and use numbers from your analysis.</p>
+
+            <div class="card">
+                <h3>Question 1: Scope of Differential Expression</h3>
+                <p>How many genes are significantly differentially expressed (padj &lt; 0.05 and |log2FC| &gt; 1)? How many are upregulated and how many are downregulated? The human genome encodes approximately 20,000 protein-coding genes — what fraction is affected by TDP-43 loss?</p>
+            </div>
+
+            <div class="card">
+                <h3>Question 2: Biological Processes Affected</h3>
+                <p>Based on your GO and GSEA results, what biological processes are most significantly enriched among genes dysregulated by TDP-43 knockdown? Are these processes consistent with the known biology of TDP-43 as an RNA-binding protein involved in splicing and RNA stability? Cite at least one process that you expected and one that surprised you.</p>
+            </div>
+
+            <div class="card">
+                <h3>Question 3: Top Hallmark Gene Set</h3>
+                <p>Which Hallmark gene set from MSigDB shows the highest Normalized Enrichment Score (NES) in your GSEA results? Is it enriched (positive NES) or depleted (negative NES)? What does this suggest about the cellular state when TDP-43 is absent?</p>
+            </div>
+
+            <div class="card">
+                <h3>Question 4: Sample Outliers</h3>
+                <p>Do all samples cluster as expected in the PCA plot (i.e., KD samples together, control samples together)? If any sample appears to be an outlier, describe what you observe and explain how you would decide whether to exclude it from the analysis. What are the consequences of including vs. excluding an outlier replicate?</p>
+            </div>
+
+            <div class="card">
+                <h3>Question 5: GO vs. KEGG vs. GSEA</h3>
+                <p>Compare the results from your three enrichment analyses. Do GO ORA, KEGG ORA, and GSEA identify the same biological processes, or do they highlight different aspects of TDP-43 biology? Which method do you find most informative for this dataset and why? Consider the differences in what each method tests (gene sets vs. pathway databases, ORA vs. ranked list).</p>
+            </div>
+
+        
+        </section>
+
+        <!-- ======================================= -->
+        <!-- Part 4: Expected Output Files            -->
+        <!-- ======================================= -->
+        <section id="outputs">
+            <h2>Part 4: Expected Output Files</h2>
+            <p>Use this table as a final checklist before you consider your capstone complete. All files should be present and non-empty.</p>
+
+            <table class="schedule-table">
+                <tr>
+                    <th>File</th>
+                    <th>Location</th>
+                    <th>Generated by</th>
+                    <th>Purpose</th>
+                </tr>
+                <tr>
+                    <td><code>multiqc_report.html</code></td>
+                    <td><code>nfcore_rnaseq/results/multiqc/</code></td>
+                    <td>nf-core/rnaseq</td>
+                    <td>Comprehensive QC summary across all samples and tools</td>
+                </tr>
+                <tr>
+                    <td><code>go_enrichment_dotplot.pdf</code></td>
+                    <td><code>enrichment/</code></td>
+                    <td>clusterProfiler (R)</td>
+                    <td>GO Biological Process ORA results, dotplot format</td>
+                </tr>
+                <tr>
+                    <td><code>kegg_dotplot.pdf</code></td>
+                    <td><code>enrichment/</code></td>
+                    <td>clusterProfiler (R)</td>
+                    <td>KEGG pathway ORA results, dotplot format</td>
+                </tr>
+                <tr>
+                    <td><code>gsea_hallmark_barplot.pdf</code></td>
+                    <td><code>enrichment/</code></td>
+                    <td>clusterProfiler (R)</td>
+                    <td>GSEA barplot of enriched/depleted Hallmark gene sets</td>
+                </tr>
+                <tr>
+                    <td>Shiny app report</td>
+                    <td><code>nfcore_diffab/results/shiny/</code></td>
+                    <td>nf-core/differentialabundance</td>
+                    <td>Interactive exploration of DE results and QC</td>
+                </tr>
+            </table>
+        </section>
+
+        <!-- ======================================= -->
+        <!-- Part 5: Optional Extensions              -->
+        <!-- ======================================= -->
+        <section id="extensions">
+            <h2>Part 5: Optional Extensions</h2>
+            <p>If you finish the main checklist early, or if you want to take your analysis further, try one or more of the following challenges. These are open-ended — there is no single correct answer.</p>
+
+            <div class="card">
+                <h3>Extension 1: Cross-dataset Comparison</h3>
+                <p>Search GEO for another published TDP-43 knockdown RNA-seq dataset in human cells (for example, try searching GEO for "TDP-43 siRNA RNA-seq Homo sapiens"). Download a small subset of it, run DESeq2, and compare the significant gene lists using a Venn diagram or UpSet plot. How much overlap do you see? What does the overlap — and the non-overlapping portion — tell you about TDP-43-regulated genes vs. cell-type-specific effects?</p>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code># In R — compare DEG lists from two datasets
+library(ggvenn)
+
+# GSE136366 DEGs from nf-core/differentialabundance output
+res_df &lt;- read.delim("nfcore_diffab/results/deseq2/KD_vs_CTRL.deseq2.results.tsv")
+degs_gse136366 &lt;- subset(res_df, padj &lt; 0.05 &amp; abs(log2FoldChange) &gt; 1)$gene_name
+
+# Load DEGs from the other dataset (run DESeq2 or nf-core/differentialabundance similarly)
+degs_other &lt;- subset(res_other, padj &lt; 0.05 &amp; abs(log2FoldChange) &gt; 1)$gene_name
+
+ggvenn(list("GSE136366" = degs_gse136366, "Other dataset" = degs_other))</code></pre>
+                </details>
+            </div>
+
+            <div class="card">
+                <h3>Extension 2: Novel Isoform Discovery with StringTie</h3>
+                <p>Run StringTie on the STAR-aligned BAM files to perform transcript assembly and identify potentially novel transcripts or alternative isoforms that are not present in the reference annotation. Compare StringTie's assembled transcript count to the number of annotated transcripts in the GTF.</p>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code>module load stringtie
+
+# Assemble transcripts for one sample
+stringtie aligned/SRR10009250/Aligned.sortedByCoord.out.bam \
+    -G references/GRCh38_genes.gtf \
+    -o stringtie/SRR10009250_assembled.gtf \
+    -p 8 \
+    -e  # remove -e to allow novel transcript discovery
+
+# Merge assemblies from all samples
+stringtie --merge \
+    -G references/GRCh38_genes.gtf \
+    -o stringtie/merged.gtf \
+    stringtie/*_assembled.gtf
+
+# Compare to reference annotation
+gffcompare -r references/GRCh38_genes.gtf stringtie/merged.gtf</code></pre>
+                </details>
+            </div>
+
+            <div class="card">
+                <h3>Extension 3: Inspect the TARDBP Gene Itself</h3>
+                <p>TDP-43 is encoded by the <em>TARDBP</em> gene. Plot its normalized read counts across all samples to verify that the knockdown is working as expected. Is the reduction in TARDBP expression statistically significant? How consistent is the knockdown across replicates? A successful siRNA knockdown should show a substantial and consistent reduction in expression.</p>
+                <details>
+                    <summary>Hint</summary>
+                    <pre><code># In R — inspect TARDBP in the nf-core/differentialabundance results
+res_df &lt;- read.delim("nfcore_diffab/results/deseq2/KD_vs_CTRL.deseq2.results.tsv")
+
+# Look up TARDBP
+res_df[res_df$gene_name == "TARDBP", c("gene_name","log2FoldChange","padj")]
+
+# Plot normalized counts using the merged count matrix
+library(DESeq2)
+counts_mat &lt;- read.delim(
+    "nfcore_rnaseq/results/star_salmon/salmon.merged.gene_counts_length_scaled.tsv",
+    row.names = 1
+)
+coldata &lt;- data.frame(
+    condition = factor(c("KD","KD","KD","CTRL","CTRL","CTRL")),
+    row.names = colnames(counts_mat)
+)
+dds &lt;- DESeqDataSetFromMatrix(round(counts_mat), colData=coldata, design=~condition)
+dds &lt;- estimateSizeFactors(dds)
+
+# Find TARDBP gene ID then plot
+tardbp_id &lt;- res_df$gene_id[res_df$gene_name == "TARDBP"]
+plotCounts(dds, gene=tardbp_id, intgroup="condition") +
+    ggtitle("TARDBP expression: TDP-43 KD vs Control") +
+    theme_bw()</code></pre>
+                </details>
+            </div>
+        </section>
+
+        <!-- ======================================= -->
+        <!-- Summary                                  -->
+        <!-- ======================================= -->
+        <section id="summary">
+            <h2>Summary</h2>
+
+            <div class="info-box tip">
+                <strong>Congratulations — you have completed the RNA-seq Comprehensive Data Analysis Workshop!</strong>
+                <p>You have worked through an entire RNA-seq analysis pipeline from raw reads to biological interpretation, and you have done it on a real, published human dataset. The skills you have built this week are directly applicable to your own research.</p>
+            </div>
+
+            <h3>Skills Acquired in This Course</h3>
+            <ul>
+                <li>Navigating and using the Ibex HPC cluster, including loading modules and submitting jobs</li>
+                <li>Working with all major genomic file formats: FASTA, FASTQ, BAM/SAM, GTF, BED</li>
+                <li>Retrieving public datasets from NCBI GEO and SRA using <strong>sra-toolkit</strong>, and reference genomes from NCBI and Ensembl</li>
+                <li>Assessing raw read quality with <strong>FastQC</strong> and performing adapter/quality trimming with <strong>fastp</strong></li>
+                <li>Aligning reads to a reference genome with <strong>STAR</strong> and quantifying expression with <strong>Salmon</strong></li>
+                <li>Running the end-to-end <strong>nf-core/rnaseq</strong> workflow for alignment, quantification, and QC in a single reproducible pipeline</li>
+                <li>Interpreting <strong>MultiQC</strong> reports to assess sample quality and identify outliers</li>
+                <li>Running <strong>nf-core/differentialabundance</strong> for standardized differential expression analysis with <strong>DESeq2</strong> and interactive Shiny reporting</li>
+                <li>Performing GO, KEGG, and GSEA enrichment analysis using <strong>clusterProfiler</strong></li>
+                <li>Interpreting bioinformatic results in a biologically meaningful context</li>
+            </ul>
+
+            <h3>Course Resources</h3>
+            <p>All slides, lab materials, data, and code from this course are available on the <a href="../index.html">course home page</a>. Bookmark it for future reference — the commands and workflows you have used here are ones you will return to.</p>
+
+            
+        </section>
+    </main>
+
+    <footer>
+        <p>RNA-seq Data Analysis Course &mdash; KAUST Bioinformatics Platform</p>
+    </footer>
+
+    <script>
+        function toggleNav() {
+            document.getElementById('nav-menu').classList.toggle('show');
+        }
+
+        // Add copy buttons to all code blocks
+        document.addEventListener('DOMContentLoaded', function() {
+            const codeBlocks = document.querySelectorAll('pre');
+            codeBlocks.forEach(function(pre) {
+                const container = document.createElement('div');
+                container.className = 'code-container';
+                pre.parentNode.insertBefore(container, pre);
+                container.appendChild(pre);
+
+                const copyBtn = document.createElement('button');
+                copyBtn.className = 'copy-btn';
+                copyBtn.textContent = 'Copy';
+                copyBtn.addEventListener('click', function() {
+                    const code = pre.querySelector('code');
+                    const text = code ? code.textContent : pre.textContent;
+                    navigator.clipboard.writeText(text).then(function() {
+                        copyBtn.textContent = 'Copied!';
+                        copyBtn.classList.add('copied');
+                        setTimeout(function() {
+                            copyBtn.textContent = 'Copy';
+                            copyBtn.classList.remove('copied');
+                        }, 2000);
+                    });
+                });
+                container.appendChild(copyBtn);
+            });
+        });
+    </script>
+</body>
+</html>

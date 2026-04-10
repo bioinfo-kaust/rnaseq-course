@@ -242,7 +242,6 @@ sbatch --job-name=nfcore_da \
     --time=4:00:00 \
     --output=da_nextflow_%j.log \
     --wrap="module purge && module load nextflow && module load singularity && \
-        export NXF_SINGULARITY_CACHEDIR=/ibex/user/$USER/singularity_cache && \
         nextflow run nf-core/differentialabundance -r 1.5.0 \
             --input samplesheet.csv \
             --contrasts contrasts.csv \
@@ -566,7 +565,7 @@ head -5 da_results/*/gprofiler2/*/*.tsv
 ls da_results/report/gsea/TDP43_KD_vs_control/
 
 # View the GSEA summary table for the Hallmark gene sets
-ls da_results/report/gsea/TDP43_KD_vs_control/*.GseaPreranked*/</code></pre>
+ls da_results/report/gsea/TDP43_KD_vs_control/</code></pre>
             </div>
 
             <div class="step" data-step="19">
